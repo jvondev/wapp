@@ -13,8 +13,8 @@ import {
   XCircle, 
   Loader2, 
   Terminal, 
-  ExternalLink, 
-  RefreshCw 
+  RefreshCw,
+  Download
 } from "lucide-solid";
 
 // Interface Definitions
@@ -45,6 +45,11 @@ interface BuildProgressEvent {
   status: string; // "running" | "success" | "error"
 }
 
+interface InstallProgressEvent {
+  message: string;
+  status: string; // "running" | "error" | "done"
+}
+
 function App() {
   // Navigation & UI state
   const [activeTab, setActiveTab] = createSignal<"workspace" | "create" | "settings">("workspace");
@@ -66,6 +71,10 @@ function App() {
   const [currentBuildId, setCurrentBuildId] = createSignal<string | null>(null);
   const [buildLogs, setBuildLogs] = createSignal<string[]>([]);
   const [buildState, setBuildState] = createSignal<"idle" | "building" | "success" | "error">("idle");
+
+  // Auto-install state
+  const [installLogs, setInstallLogs] = createSignal<string[]>([]);
+  const [installState, setInstallState] = createSignal<"idle" | "running" | "done" | "error">("idle");
 
   // Auto-fill app name from URL domain
   const handleUrlChange = (urlVal: string) => {
@@ -101,6 +110,19 @@ function App() {
       console.error("Dependency check error:", err);
     } finally {
       setIsCheckingDeps(false);
+    }
+  };
+
+  // Trigger auto-install of Node.js + Rust
+  const handleInstallDeps = async () => {
+    if (installState() === "running") return;
+    setInstallLogs(["Starting automatic setup..."]);
+    setInstallState("running");
+    try {
+      await invoke("install_dependencies");
+    } catch (err) {
+      setInstallLogs(prev => [`Error: ${err}`, ...prev]);
+      setInstallState("error");
     }
   };
 
@@ -197,23 +219,32 @@ function App() {
     checkSystemDeps();
     loadConfiguredWapps();
 
-    // Listen for progress updates from the Rust background builder thread
+    // Listen for build progress from Rust
     listen<BuildProgressEvent>("build-progress", (event) => {
       const payload = event.payload;
       if (payload.app_id !== currentBuildId()) return;
-
-      // Add new log message
       setBuildLogs(prev => [payload.message, ...prev]);
-
       if (payload.status === "success") {
         setBuildState("success");
         loadConfiguredWapps();
-        // Reset form inputs after successful compilation
         setFormUrl("");
         setFormName("");
         setFormIcon("");
       } else if (payload.status === "error") {
         setBuildState("error");
+      }
+    });
+
+    // Listen for auto-install progress
+    listen<InstallProgressEvent>("install-progress", (event) => {
+      const { message, status } = event.payload;
+      setInstallLogs(prev => [message, ...prev]);
+      if (status === "done") {
+        setInstallState("done");
+        // Re-check deps after install finishes
+        setTimeout(() => checkSystemDeps(), 1500);
+      } else if (status === "error") {
+        setInstallState("error");
       }
     });
   });
@@ -572,49 +603,80 @@ function App() {
                 </button>
               </div>
 
-              {/* Install guide for non-technical users */}
+              {/* One-click Auto Installer */}
               <div class="settings-card">
-                <h3>Setup Guide for Non-Technical Users</h3>
-                <p style="font-size: 0.85rem; color: hsl(var(--muted-foreground)); margin-bottom: 1rem;">
-                  Setting up wapp is a one-time process. Once configured, you can build infinite desktop apps instantly.
+                <h3>One-Click Auto Setup</h3>
+                <p style="font-size: 0.85rem; color: hsl(var(--muted-foreground)); margin-bottom: 1.25rem;">
+                  Let wapp install everything for you automatically. Node.js and Rust will be downloaded and configured in the background — no technical knowledge needed.
                 </p>
 
-                <div class="guide-steps">
-                  <div class="guide-step">
-                    <div class="step-num">1</div>
-                    <div class="step-text">
-                      <strong>Install Node.js:</strong>
-                      <div>Download and install Node.js from the official site. This installs the tools needed to orchestrate packaging.</div>
-                      <a href="https://nodejs.org/" target="_blank" class="btn-primary" style="margin-top: 0.5rem; display: inline-flex; width: auto; font-size: 0.8rem; padding: 0.4rem 0.8rem;">
-                        Download Node.js
-                        <ExternalLink size={12} />
-                      </a>
+                <Show when={installState() === "idle" || installState() === "done" || installState() === "error"}>
+                  <button
+                    class="btn-primary"
+                    style="width: 100%; margin-top: 0;"
+                    onClick={handleInstallDeps}
+                    disabled={depStatus()?.node_installed && depStatus()?.rust_installed}
+                  >
+                    <Download size={18} />
+                    {depStatus()?.node_installed && depStatus()?.rust_installed
+                      ? "All Dependencies Installed"
+                      : installState() === "done"
+                        ? "Run Again"
+                        : "Install Everything Automatically"
+                    }
+                  </button>
+                  <Show when={depStatus()?.node_installed && depStatus()?.rust_installed}>
+                    <div style="font-size: 0.78rem; color: #4ade80; margin-top: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
+                      <CheckCircle2 size={14} /> System is already fully set up.
                     </div>
-                  </div>
+                  </Show>
+                </Show>
 
-                  <div class="guide-step">
-                    <div class="step-num">2</div>
-                    <div class="step-text">
-                      <strong>Install Rust Compiler:</strong>
-                      <div>Tauri applications are built using Rust for maximum security and execution speed. Download the Rustup installer.</div>
-                      <a href="https://www.rust-lang.org/tools/install" target="_blank" class="btn-primary" style="margin-top: 0.5rem; display: inline-flex; width: auto; font-size: 0.8rem; padding: 0.4rem 0.8rem;">
-                        Install Rust Compiler
-                        <ExternalLink size={12} />
-                      </a>
-                      <div style="font-size: 0.75rem; color: hsl(var(--muted-foreground)); margin-top: 0.5rem;">
-                        <em>Note for Windows:</em> The installer will guide you to also install Visual Studio C++ Build Tools (highly recommended).
+                <Show when={installState() === "running"}>
+                  <button class="btn-primary" style="width: 100%; margin-top: 0;" disabled>
+                    <Loader2 class="animate-spin" size={18} style="animation: spin 1s linear infinite;" />
+                    Installing… please wait
+                  </button>
+                </Show>
+
+                <Show when={installState() !== "idle"}>
+                  <div class="terminal-container" style="margin-top: 1rem;">
+                    <div class="terminal-header">
+                      <div class="terminal-dots">
+                        <div class="terminal-dot red" />
+                        <div class="terminal-dot yellow" />
+                        <div class="terminal-dot green" />
                       </div>
+                      <span>wapp-setup console</span>
+                      <Terminal size={12} />
+                    </div>
+                    <div class="terminal-body">
+                      <For each={installLogs()}>
+                        {(log) => <div style="margin-bottom: 2px;">{log}</div>}
+                      </For>
                     </div>
                   </div>
+                </Show>
 
-                  <div class="guide-step">
-                    <div class="step-num">3</div>
-                    <div class="step-text">
-                      <strong>Verify Setup:</strong>
-                      <div>Restart wapp after installing the requirements above and click the "Refresh Environment Status" button. Once status shows "System Ready", you are fully set to package apps!</div>
+                <Show when={installState() === "done"}>
+                  <div style="background-color: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); border-radius: 6px; padding: 0.875rem; margin-top: 0.75rem; display: flex; align-items: center; gap: 0.75rem; color: #4ade80; font-size: 0.85rem;">
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <div style="font-weight: 600;">Setup Complete!</div>
+                      <div style="font-size: 0.78rem; color: rgba(255,255,255,0.6);">Restart wapp and click "Refresh" above to verify your environment.</div>
                     </div>
                   </div>
-                </div>
+                </Show>
+
+                <Show when={installState() === "error"}>
+                  <div style="background-color: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 6px; padding: 0.875rem; margin-top: 0.75rem; display: flex; align-items: center; gap: 0.75rem; color: #f87171; font-size: 0.85rem;">
+                    <XCircle size={18} />
+                    <div>
+                      <div style="font-weight: 600;">Installation Error</div>
+                      <div style="font-size: 0.78rem; color: rgba(255,255,255,0.6);">Check the console above. You may need internet access or admin rights.</div>
+                    </div>
+                  </div>
+                </Show>
               </div>
             </div>
           </Show>

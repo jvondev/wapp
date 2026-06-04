@@ -50,8 +50,49 @@ fn run_shell_cmd(cmd: &str, args: &[&str]) -> std::io::Result<std::process::Outp
     }
 }
 
+fn refresh_path_env() {
+    #[cfg(target_os = "windows")]
+    {
+        let mut updated = false;
+        let mut current_paths = std::env::var("PATH").unwrap_or_default();
+        
+        if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            let cargo_bin = format!("{}\\.cargo\\bin", user_profile);
+            let cargo_path = Path::new(&cargo_bin);
+            if cargo_path.exists() && !current_paths.contains(&cargo_bin) {
+                current_paths = format!("{};{}", cargo_bin, current_paths);
+                updated = true;
+            }
+        }
+        
+        if let Ok(program_files) = std::env::var("ProgramFiles") {
+            let node_bin = format!("{}\\nodejs", program_files);
+            let node_path = Path::new(&node_bin);
+            if node_path.exists() && !current_paths.contains(&node_bin) {
+                current_paths = format!("{};{}", node_bin, current_paths);
+                updated = true;
+            }
+        }
+        
+        if let Ok(program_files_x86) = std::env::var("ProgramFiles(x86)") {
+            let node_bin = format!("{}\\nodejs", program_files_x86);
+            let node_path = Path::new(&node_bin);
+            if node_path.exists() && !current_paths.contains(&node_bin) {
+                current_paths = format!("{};{}", node_bin, current_paths);
+                updated = true;
+            }
+        }
+
+        if updated {
+            std::env::set_var("PATH", current_paths);
+        }
+    }
+}
+
 #[tauri::command]
 fn check_dependencies() -> DependencyStatus {
+    refresh_path_env();
+
     let node_version = run_shell_cmd("node", &["--version"])
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_else(|_| "Not Installed".to_string());
@@ -405,12 +446,143 @@ fn open_workspace_folder(app_handle: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Clone, serde::Serialize, Debug)]
+struct InstallProgress {
+    message: String,
+    status: String, // "running" | "success" | "error" | "done"
+}
+
+#[tauri::command]
+fn install_dependencies(app_handle: AppHandle) -> Result<(), String> {
+    let app_handle_clone = app_handle.clone();
+
+    std::thread::spawn(move || {
+        macro_rules! emit {
+            ($msg:expr, $status:expr) => {{
+                let _ = app_handle_clone.emit(
+                    "install-progress",
+                    InstallProgress {
+                        message: $msg.to_string(),
+                        status: $status.to_string(),
+                    },
+                );
+            }};
+        }
+
+        let tmp_dir = std::env::temp_dir();
+
+        // ── Node.js ────────────────────────────────────────────────────────────
+        let node_already = run_shell_cmd("node", &["--version"])
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+
+        if node_already {
+            emit!("Node.js already installed — skipping.", "running");
+        } else {
+            emit!("Downloading Node.js LTS installer…", "running");
+
+            let node_msi = tmp_dir.join("node_installer.msi");
+            let node_msi_str = node_msi.to_string_lossy().to_string();
+
+            // Latest LTS redirect — always resolves to current LTS MSI
+            let node_url = "https://nodejs.org/dist/latest-v22.x/node-v22.15.1-x64.msi";
+
+            let dl_status = Command::new("powershell")
+                .args([
+                    "-NoProfile",
+                    "-ExecutionPolicy", "Bypass",
+                    "-Command",
+                    &format!(
+                        "Invoke-WebRequest -Uri '{}' -OutFile '{}' -UseBasicParsing",
+                        node_url, node_msi_str
+                    ),
+                ])
+                .status();
+
+            match dl_status {
+                Ok(s) if s.success() => {
+                    emit!("Installing Node.js silently…", "running");
+                    let install_status = Command::new("msiexec")
+                        .args(["/i", &node_msi_str, "/qn", "/norestart",
+                               "ADDLOCAL=ALL"])
+                        .status();
+                    match install_status {
+                        Ok(s) if s.success() => emit!("Node.js installed successfully.", "running"),
+                        Ok(s) => emit!(
+                            format!("Node.js installer exited with code {:?}.", s.code()),
+                            "running"
+                        ),
+                        Err(e) => emit!(format!("Failed to run Node.js installer: {}", e), "error"),
+                    }
+                    let _ = fs::remove_file(&node_msi);
+                }
+                Ok(_) | Err(_) => emit!("Failed to download Node.js.", "error"),
+            }
+        }
+
+        // ── Rust / Rustup ──────────────────────────────────────────────────────
+        let rust_already = run_shell_cmd("rustc", &["--version"])
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+
+        if rust_already {
+            emit!("Rust already installed — skipping.", "running");
+        } else {
+            emit!("Downloading Rustup installer…", "running");
+
+            let rustup_exe = tmp_dir.join("rustup-init.exe");
+            let rustup_exe_str = rustup_exe.to_string_lossy().to_string();
+
+            let dl_status = Command::new("powershell")
+                .args([
+                    "-NoProfile",
+                    "-ExecutionPolicy", "Bypass",
+                    "-Command",
+                    &format!(
+                        "Invoke-WebRequest -Uri 'https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe' -OutFile '{}' -UseBasicParsing",
+                        rustup_exe_str
+                    ),
+                ])
+                .status();
+
+            match dl_status {
+                Ok(s) if s.success() => {
+                    emit!("Installing Rust toolchain silently (this takes a few minutes)…", "running");
+                    // -y = no prompts, --default-toolchain stable
+                    let install_status = Command::new(&rustup_exe)
+                        .args(["-y", "--default-toolchain", "stable",
+                               "--default-host", "x86_64-pc-windows-msvc"])
+                        .status();
+                    match install_status {
+                        Ok(s) if s.success() => emit!("Rust installed successfully.", "running"),
+                        Ok(s) => emit!(
+                            format!("Rustup installer exited with code {:?}.", s.code()),
+                            "running"
+                        ),
+                        Err(e) => emit!(format!("Failed to run Rustup installer: {}", e), "error"),
+                    }
+                    let _ = fs::remove_file(&rustup_exe);
+                }
+                Ok(_) | Err(_) => emit!("Failed to download Rustup.", "error"),
+            }
+        }
+
+        emit!(
+            "Setup complete! Please restart wapp and click 'Refresh' to verify.",
+            "done"
+        );
+    });
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             check_dependencies,
+            install_dependencies,
             load_wapps,
             save_wapps,
             build_wapp,
