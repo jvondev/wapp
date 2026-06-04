@@ -1,4 +1,5 @@
 import { createSignal, onMount, For, Show } from "solid-js";
+import "./App.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { 
