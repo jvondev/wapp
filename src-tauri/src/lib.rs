@@ -166,6 +166,7 @@ fn build_wapp(
     hide_title_bar: bool,
     category: String,
     created_at: String,
+    maximize: bool,
 ) -> Result<(), String> {
     let app_handle_clone = app_handle.clone();
     let id_clone = id.clone();
@@ -201,12 +202,18 @@ fn build_wapp(
             args.push("--hide-title-bar".to_string());
         }
 
+        if maximize {
+            args.push("--maximize".to_string());
+        }
+
         if let Some(ref icon_path) = icon {
             if !icon_path.trim().is_empty() {
                 args.push("--icon".to_string());
                 args.push(icon_path.clone());
             }
         }
+
+        let target_dir = workspace_dir.join(".cargo_target");
 
         #[cfg(target_os = "windows")]
         let mut cmd = Command::new("cmd");
@@ -219,6 +226,7 @@ fn build_wapp(
         cmd.args(&args);
 
         cmd.current_dir(&workspace_dir)
+            .env("CARGO_TARGET_DIR", &target_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
