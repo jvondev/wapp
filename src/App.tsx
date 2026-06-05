@@ -60,6 +60,11 @@ interface ActiveBuild {
   category: string;
 }
 
+interface SiteInfo {
+  title: string | null;
+  icon: string | null;
+}
+
 function App() {
   // Navigation & UI state
   const [activeTab, setActiveTab] = createSignal<"all" | "settings">("all");
@@ -87,17 +92,66 @@ function App() {
   const [installLogs, setInstallLogs] = createSignal<string[]>([]);
   const [installState, setInstallState] = createSignal<"idle" | "running" | "done" | "error">("idle");
 
+  // Smart Favicon Fetching
+  const [faviconUrl, setFaviconUrl] = createSignal("");
+  const [isFetchingInfo, setIsFetchingInfo] = createSignal(false);
+
+  // Real Site Info Fetcher
+  const fetchSiteInfo = async (urlVal: string) => {
+    if (!urlVal.includes(".") || urlVal.length < 4) return;
+    
+    setIsFetchingInfo(true);
+    try {
+      const info = await invoke<SiteInfo>("get_site_info", { url: urlVal });
+      if (info.icon) setFaviconUrl(info.icon);
+      if (info.title && !formName()) {
+        // Clean up title (e.g. remove " - Home", " | Website")
+        let cleanTitle = info.title.split(/ - | \| |: /)[0].trim();
+        setFormName(cleanTitle);
+      }
+    } catch (err) {
+      console.error("Failed to fetch site info:", err);
+      // Fallback to simple logic if real fetch fails
+      if (urlVal.includes(".")) {
+        const cleanUrl = urlVal.startsWith("http") ? urlVal : `https://${urlVal}`;
+        setFaviconUrl(`https://www.google.com/s2/favicons?domain=${cleanUrl}&sz=128`);
+      }
+    } finally {
+      setIsFetchingInfo(false);
+    }
+  };
+
+  // Update url and sync everything
+  const handleUrlChange = (val: string) => {
+    setFormUrl(val);
+    // Real-time favicon update (fast fallback)
+    if (val.includes(".")) {
+      const cleanUrl = val.startsWith("http") ? val : `https://${val}`;
+      setFaviconUrl(`https://www.google.com/s2/favicons?domain=${cleanUrl}&sz=128`);
+    }
+  };
+
+  // Trigger real fetch on blur or manual trigger
+  const handleUrlBlur = () => {
+    autoFillName(); // Basic logic first
+    fetchSiteInfo(formUrl()); // Real logic second
+  };
+
   // Auto-fill app name on blur or enter key
   const autoFillName = () => {
-    const urlVal = formUrl().trim();
-    if (!urlVal || formName()) return;
+    let urlVal = formUrl().trim();
+    if (!urlVal) return;
+
+    // Ensure protocol for parsing and interactive preview
+    if (!urlVal.startsWith("http://") && !urlVal.startsWith("https://")) {
+      urlVal = "https://" + urlVal;
+      setFormUrl(urlVal);
+    }
+
+    if (formName()) return;
 
     try {
-      let domain = urlVal;
-      if (!domain.startsWith("http://") && !domain.startsWith("https://")) {
-        domain = "https://" + domain;
-      }
-      const parsed = new URL(domain);
+      const parsed = new URL(urlVal);
       const parts = parsed.hostname.replace("www.", "").split(".");
       
       if (parts.length >= 2) {
@@ -540,45 +594,57 @@ function App() {
 
       {/* Add App Command Center */}
       <Show when={showAddModal()}>
-        <div class="command-center-overlay" onClick={() => setShowAddModal(false)}>
+        <div class="command-center-overlay" onClick={() => { setShowAddModal(false); setShowAdvanced(false); }}>
           <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
-            <div style="position: relative;">
-              {/* Floating Preview */}
-              <Show when={formUrl().length > 5}>
-                <div class="floating-preview">
-                  <div class="preview-app-icon">
-                    {formName() ? formName().charAt(0) : (formUrl().includes(".") ? formUrl().split(".")[1]?.charAt(0).toUpperCase() : "W")}
+            
+            {/* Live Interactive Preview */}
+            <Show when={formUrl().length > 3 && formUrl().includes(".")}>
+              <div class="floating-preview">
+                <div class="preview-top-bar">
+                  <Show when={faviconUrl()} fallback={<div class="wapp-icon" style="width: 20px; height: 20px; font-size: 0.6rem; border-radius: 4px;">{formName().charAt(0) || "W"}</div>}>
+                    <img src={faviconUrl()} class="preview-favicon" />
+                  </Show>
+                  <div class="wapp-info" style="gap: 0;">
+                    <span class="wapp-name" style="font-size: 0.8rem;">
+                       {isFetchingInfo() ? "Fetching site info..." : (formName() || "Preview")}
+                    </span>
+                    <span class="wapp-url" style="font-size: 0.6rem;">{formUrl()}</span>
                   </div>
-                  <div class="preview-app-details">
-                    <span class="preview-app-name">{formName() || "New Application"}</span>
-                    <span class="preview-app-meta">{formUrl() || "Enter URL..."}</span>
-                  </div>
-                  <div style="margin-left: auto; display: flex; gap: 0.5rem;">
-                     <button class="btn-icon" onClick={() => setShowAdvanced(!showAdvanced())}>
-                        {showAdvanced() ? <ChevronUp size={14} /> : <Settings size={14} />}
+                  <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+                     {isFetchingInfo() && <Loader2 size={12} class="loading-spinner" />}
+                     <button class="btn-icon" title="Settings" onClick={() => setShowAdvanced(!showAdvanced())}>
+                        <Settings size={14} />
                      </button>
                   </div>
                 </div>
-              </Show>
+                <iframe 
+                  src={formUrl().startsWith("http") ? formUrl() : `https://${formUrl()}`} 
+                  class="interactive-viewport"
+                  title="Wapp Preview"
+                />
+              </div>
+            </Show>
 
+            <div style="position: relative;">
               <form onSubmit={handleBuildWapp} class="command-bar">
-                <Globe size={20} class="text-muted-foreground" style="color: #52525b" />
+                <Globe size={24} style="color: #52525b" />
                 <input 
                   autoFocus
                   type="text" 
                   class="command-input" 
-                  placeholder="Paste website URL (e.g. app.todoist.com)..." 
+                  placeholder="Paste URL (e.g. app.todoist.com)..." 
                   value={formUrl()}
-                  onInput={(e) => setFormUrl(e.currentTarget.value)}
-                  onBlur={autoFillName}
+                  onInput={(e) => handleUrlChange(e.currentTarget.value)}
+                  onBlur={handleUrlBlur}
                 />
                 <button 
                   type="submit" 
                   class="btn-command"
+                  style="padding: 0.6rem 1.25rem; font-size: 0.85rem;"
                   disabled={!formUrl() || !formName()}
                 >
-                  <Plus size={14} />
-                  Create
+                  <Plus size={16} />
+                  Create Wapp
                 </button>
               </form>
             </div>
