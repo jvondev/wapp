@@ -98,15 +98,23 @@ function App() {
         domain = "https://" + domain;
       }
       const parsed = new URL(domain);
-      if (parsed.hostname.includes(".")) {
-        let hostname = parsed.hostname.replace("www.", "");
-        const dotIdx = hostname.indexOf(".");
-        if (dotIdx > 0) {
-          hostname = hostname.substring(0, dotIdx);
-        }
-        if (hostname.length > 1) {
-          const nameVal = hostname.charAt(0).toUpperCase() + hostname.slice(1);
-          setFormName(nameVal);
+      const parts = parsed.hostname.replace("www.", "").split(".");
+      
+      if (parts.length >= 2) {
+        let brand = parts[parts.length - 2];
+        brand = brand.charAt(0).toUpperCase() + brand.slice(1);
+        
+        if (parts.length > 2) {
+          const sub = parts[0].toLowerCase();
+          const commonAppSubs = ["app", "web", "my", "dashboard", "console", "portal", "cloud"];
+          if (commonAppSubs.includes(sub)) {
+            setFormName(`${brand} App`);
+          } else {
+            const subTitle = sub.charAt(0).toUpperCase() + sub.slice(1);
+            setFormName(`${subTitle} ${brand}`);
+          }
+        } else {
+          setFormName(brand);
         }
       }
     } catch (_) {}
@@ -530,75 +538,73 @@ function App() {
         </div>
       </main>
 
-      {/* Add App Modal */}
+      {/* Add App Command Center */}
       <Show when={showAddModal()}>
-        <div class="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div class="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div class="modal-header">
-              <h3 style="font-size: 0.95rem; font-weight: 600;">Create New Wapp</h3>
-              <button class="btn-icon" onClick={() => setShowAddModal(false)}>
-                <X size={16} />
-              </button>
-            </div>
-            <form onSubmit={handleBuildWapp} class="modal-body">
-              <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                <label style="font-size: 0.75rem; font-weight: 500; color: #a1a1aa;">Website URL</label>
-                <div style="position: relative; display: flex; align-items: center;">
-                  <Globe size={14} style="position: absolute; left: 0.75rem; color: #52525b;" />
-                  <input 
-                    type="text" 
-                    class="input-field" 
-                    style="padding-left: 2.25rem; width: 100%;"
-                    placeholder="https://app.todoist.com" 
-                    value={formUrl()}
-                    onInput={(e) => setFormUrl(e.currentTarget.value)}
-                    onBlur={autoFillName}
-                  />
-                </div>
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                <label style="font-size: 0.75rem; font-weight: 500; color: #a1a1aa;">Application Name</label>
-                <input 
-                  type="text" 
-                  class="input-field" 
-                  style="width: 100%;"
-                  placeholder="e.g. Todoist" 
-                  value={formName()}
-                  onInput={(e) => setFormName(e.currentTarget.value)}
-                />
-              </div>
-
-              {/* Preview */}
-              <div class="preview-container">
-                <div class="preview-body">
+        <div class="command-center-overlay" onClick={() => setShowAddModal(false)}>
+          <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
+            <div style="position: relative;">
+              {/* Floating Preview */}
+              <Show when={formUrl().length > 5}>
+                <div class="floating-preview">
                   <div class="preview-app-icon">
-                    {formName() ? formName().charAt(0) : "W"}
+                    {formName() ? formName().charAt(0) : (formUrl().includes(".") ? formUrl().split(".")[1]?.charAt(0).toUpperCase() : "W")}
                   </div>
                   <div class="preview-app-details">
                     <span class="preview-app-name">{formName() || "New Application"}</span>
-                    <span class="preview-app-meta">{formUrl() || "your-url.com"}</span>
+                    <span class="preview-app-meta">{formUrl() || "Enter URL..."}</span>
+                  </div>
+                  <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+                     <button class="btn-icon" onClick={() => setShowAdvanced(!showAdvanced())}>
+                        {showAdvanced() ? <ChevronUp size={14} /> : <Settings size={14} />}
+                     </button>
                   </div>
                 </div>
-              </div>
+              </Show>
 
-              {/* Advanced Disclosure */}
-              <button 
-                type="button"
-                class="advanced-settings-toggle" 
-                onClick={() => setShowAdvanced(!showAdvanced())}
-              >
-                {showAdvanced() ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                Advanced Configuration
-              </button>
+              <form onSubmit={handleBuildWapp} class="command-bar">
+                <Globe size={20} class="text-muted-foreground" style="color: #52525b" />
+                <input 
+                  autoFocus
+                  type="text" 
+                  class="command-input" 
+                  placeholder="Paste website URL (e.g. app.todoist.com)..." 
+                  value={formUrl()}
+                  onInput={(e) => setFormUrl(e.currentTarget.value)}
+                  onBlur={autoFillName}
+                />
+                <button 
+                  type="submit" 
+                  class="btn-command"
+                  disabled={!formUrl() || !formName()}
+                >
+                  <Plus size={14} />
+                  Create
+                </button>
+              </form>
+            </div>
 
-              <Show when={showAdvanced()}>
-                <div class="advanced-panel">
-                  <div class="advanced-row">
-                    <div class="row-info">
-                      <span class="row-title">Category</span>
-                      <span class="row-desc">Organize your apps</span>
-                    </div>
+            {/* Advanced Settings Card */}
+            <Show when={showAdvanced()}>
+              <div class="advanced-card">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                   <h3 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #52525b; letter-spacing: 0.05em;">Configuration</h3>
+                   <button class="btn-icon" onClick={() => setShowAdvanced(false)}><X size={14} /></button>
+                </div>
+
+                <div class="advanced-field-group">
+                  <label>Application Name</label>
+                  <input 
+                    type="text" 
+                    class="input-field" 
+                    placeholder="e.g. Todoist App" 
+                    value={formName()}
+                    onInput={(e) => setFormName(e.currentTarget.value)}
+                  />
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div class="advanced-field-group">
+                    <label>Category</label>
                     <select 
                       class="input-field" 
                       value={formCategory()} 
@@ -609,40 +615,33 @@ function App() {
                       <option value="Enterprise">Enterprise</option>
                     </select>
                   </div>
-                  <div class="advanced-row">
-                    <div class="row-info">
-                      <span class="row-title">Title Bar</span>
-                      <span class="row-desc">Hide native window controls</span>
+                  <div class="advanced-field-group">
+                    <label>Window Style</label>
+                    <div style="display: flex; align-items: center; gap: 1rem; height: 100%;">
+                       <div style="display: flex; align-items: center; gap: 0.4rem;">
+                          <input type="checkbox" checked={formHideTitle()} onChange={(e) => setFormHideTitle(e.currentTarget.checked)} />
+                          <span style="font-size: 0.75rem;">Frameless</span>
+                       </div>
+                       <div style="display: flex; align-items: center; gap: 0.4rem;">
+                          <input type="checkbox" checked={formMaximize()} onChange={(e) => setFormMaximize(e.currentTarget.checked)} />
+                          <span style="font-size: 0.75rem;">Maximize</span>
+                       </div>
                     </div>
-                    <input 
-                      type="checkbox" 
-                      checked={formHideTitle()} 
-                      onChange={(e) => setFormHideTitle(e.currentTarget.checked)} 
-                    />
-                  </div>
-                  <div class="advanced-row">
-                    <div class="row-info">
-                      <span class="row-title">Maximize</span>
-                      <span class="row-desc">Start window in fullscreen</span>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={formMaximize()} 
-                      onChange={(e) => setFormMaximize(e.currentTarget.checked)} 
-                    />
                   </div>
                 </div>
-              </Show>
 
-              <button 
-                type="submit" 
-                class="btn-primary" 
-                style="margin-top: 0.5rem; padding: 0.75rem;"
-                disabled={!formUrl() || !formName()}
-              >
-                Build Desktop App
-              </button>
-            </form>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                   <div class="advanced-field-group">
+                      <label>Width</label>
+                      <input type="number" class="input-field" value={formWidth()} onInput={(e) => setFormWidth(parseInt(e.currentTarget.value))} />
+                   </div>
+                   <div class="advanced-field-group">
+                      <label>Height</label>
+                      <input type="number" class="input-field" value={formHeight()} onInput={(e) => setFormHeight(parseInt(e.currentTarget.value))} />
+                   </div>
+                </div>
+              </div>
+            </Show>
           </div>
         </div>
       </Show>
