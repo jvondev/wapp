@@ -1,5 +1,5 @@
-import { Component, Show, createSignal } from "solid-js";
-import { Globe, Plus, Settings, X, Loader2 } from "lucide-solid";
+import { Component, Show, createSignal, For } from "solid-js";
+import { Globe, Plus, Settings, X, Loader2, Play } from "lucide-solid";
 import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
 
@@ -17,10 +17,22 @@ export const CommandCenter: Component = () => {
 
   const [faviconUrl, setFaviconUrl] = createSignal("");
   const [isFetchingInfo, setIsFetchingInfo] = createSignal(false);
+  const [previewBlocked, setPreviewBlocked] = createSignal(false);
+
+  const isUrl = () => url().includes(".") && url().length > 3;
+
+  const filteredExistingWapps = () => {
+    if (isUrl() || url() === "") return [];
+    return state.wapps.filter(w => 
+      w.name.toLowerCase().includes(url().toLowerCase()) || 
+      w.url.toLowerCase().includes(url().toLowerCase())
+    ).slice(0, 5);
+  };
 
   const fetchSiteInfo = async (urlVal: string) => {
     if (!urlVal.includes(".") || urlVal.length < 4) return;
     setIsFetchingInfo(true);
+    setPreviewBlocked(false);
     try {
       const info = await tauriService.getSiteInfo(urlVal);
       if (info.icon) setFaviconUrl(info.icon);
@@ -47,7 +59,7 @@ export const CommandCenter: Component = () => {
 
   const autoFillName = () => {
     let urlVal = url().trim();
-    if (!urlVal) return;
+    if (!urlVal || !urlVal.includes(".")) return;
     if (!urlVal.startsWith("http://") && !urlVal.startsWith("https://")) {
       urlVal = "https://" + urlVal;
       setUrl(urlVal);
@@ -71,6 +83,7 @@ export const CommandCenter: Component = () => {
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
+    if (!isUrl()) return;
     actions.startBuild({
       name: name(),
       url: url(),
@@ -81,7 +94,6 @@ export const CommandCenter: Component = () => {
       maximize: maximize()
     }, faviconUrl());
 
-    // Reset local state
     setUrl("");
     setName("");
     setFaviconUrl("");
@@ -92,7 +104,7 @@ export const CommandCenter: Component = () => {
       <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
         <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
           
-          <Show when={url().length > 3 && url().includes(".")}>
+          <Show when={isUrl()}>
             <div class="floating-preview">
               <div class="preview-top-bar">
                 <Show when={faviconUrl()} fallback={<div class="wapp-icon" style="width: 20px; height: 20px; font-size: 0.6rem; border-radius: 4px;">{name().charAt(0) || "W"}</div>}>
@@ -111,11 +123,22 @@ export const CommandCenter: Component = () => {
                    </button>
                 </div>
               </div>
-              <iframe 
-                src={url().startsWith("http") ? url() : `https://${url()}`} 
-                class="interactive-viewport"
-                title="Wapp Preview"
-              />
+              
+              <Show when={!previewBlocked()} fallback={
+                <div style="height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; background: #09090b; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                   <Globe size={32} style="color: #27272a" />
+                   <span style="font-size: 0.75rem; color: #52525b;">Secure site (Preview blocked by website)</span>
+                </div>
+              }>
+                <iframe 
+                  src={url().startsWith("http") ? url() : `https://${url()}`} 
+                  class="interactive-viewport"
+                  title="Wapp Preview"
+                  onLoad={() => {
+                    // Simple heuristic: if it loads extremely fast and empty, it might be blocked
+                  }}
+                />
+              </Show>
             </div>
           </Show>
 
@@ -126,22 +149,43 @@ export const CommandCenter: Component = () => {
                 autoFocus
                 type="text" 
                 class="command-input" 
-                placeholder="Paste URL (e.g. app.todoist.com)..." 
+                placeholder="Paste URL or search apps..." 
                 value={url()}
                 onInput={(e) => handleUrlChange(e.currentTarget.value)}
                 onBlur={() => { autoFillName(); fetchSiteInfo(url()); }}
               />
-              <button 
-                type="submit" 
-                class="btn-command"
-                style="padding: 0.6rem 1.25rem; font-size: 0.85rem;"
-                disabled={!url() || !name()}
-              >
-                <Plus size={16} />
-                Create Wapp
-              </button>
+              <Show when={isUrl()}>
+                <button 
+                  type="submit" 
+                  class="btn-command"
+                  style="padding: 0.6rem 1.25rem; font-size: 0.85rem;"
+                  disabled={!url() || !name()}
+                >
+                  <Plus size={16} />
+                  Create Wapp
+                </button>
+              </Show>
             </form>
           </div>
+
+          {/* Search Results for Existing Wapps */}
+          <Show when={filteredExistingWapps().length > 0}>
+             <div class="search-results">
+                <div style="padding: 0.5rem 1rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #52525b; border-bottom: 1px solid rgba(255,255,255,0.03);">Existing Applications</div>
+                <For each={filteredExistingWapps()}>
+                  {(wapp) => (
+                    <div class="search-item" onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}>
+                      <div class="wapp-icon" style="width: 24px; height: 24px; font-size: 0.7rem;">{wapp.name.charAt(0)}</div>
+                      <div class="search-item-info">
+                        <span class="search-item-name">{wapp.name}</span>
+                        <span class="search-item-url">{wapp.url}</span>
+                      </div>
+                      <div style="margin-left: auto;"><Play size={12} style="color: #52525b" /></div>
+                    </div>
+                  )}
+                </For>
+             </div>
+          </Show>
 
           <Show when={showAdvanced()}>
             <div class="advanced-card">

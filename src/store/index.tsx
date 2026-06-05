@@ -1,8 +1,15 @@
 import { createStore, produce } from "solid-js/store";
-import { createContext, useContext, JSX, onMount } from "solid-js";
+import { createContext, useContext, JSX, onMount, onCleanup } from "solid-js";
 import { WappConfig, DependencyStatus, ActiveBuild, BuildProgressEvent, InstallProgressEvent } from "../types";
 import { tauriService } from "../services/tauri";
 import { listen } from "@tauri-apps/api/event";
+
+export interface Notification {
+  id: string;
+  message: string;
+  type: "success" | "error" | "info";
+  timestamp: number;
+}
 
 interface AppState {
   wapps: WappConfig[];
@@ -14,7 +21,10 @@ interface AppState {
   activeTab: "all" | "settings";
   filterCategory: string;
   showAddModal: boolean;
+  notifications: Notification[];
 }
+
+const STORAGE_KEY = "wapp_prefs";
 
 const initialState: AppState = {
   wapps: [],
@@ -23,9 +33,10 @@ const initialState: AppState = {
   isCheckingDeps: false,
   installLogs: [],
   installState: "idle",
-  activeTab: "all",
-  filterCategory: "All",
+  activeTab: (localStorage.getItem(`${STORAGE_KEY}_tab`) as any) || "all",
+  filterCategory: localStorage.getItem(`${STORAGE_KEY}_cat`) || "All",
   showAddModal: false,
+  notifications: [],
 };
 
 function createAppStore() {
@@ -33,10 +44,26 @@ function createAppStore() {
 
   // Actions
   const actions = {
-    setActiveTab: (tab: "all" | "settings") => setState("activeTab", tab),
-    setFilterCategory: (cat: string) => setState("filterCategory", cat),
+    setActiveTab: (tab: "all" | "settings") => {
+      setState("activeTab", tab);
+      localStorage.setItem(`${STORAGE_KEY}_tab`, tab);
+    },
+    setFilterCategory: (cat: string) => {
+      setState("filterCategory", cat);
+      localStorage.setItem(`${STORAGE_KEY}_cat`, cat);
+    },
     setShowAddModal: (show: boolean) => setState("showAddModal", show),
     
+    addNotification: (message: string, type: "success" | "error" | "info" = "info") => {
+      const id = Math.random().toString(36).substring(7);
+      setState("notifications", prev => [{ id, message, type, timestamp: Date.now() }, ...prev]);
+      setTimeout(() => actions.removeNotification(id), 5000);
+    },
+
+    removeNotification: (id: string) => {
+      setState("notifications", prev => prev.filter(n => n.id !== id));
+    },
+
     checkDeps: async () => {
       setState("isCheckingDeps", true);
       try {
@@ -53,8 +80,10 @@ function createAppStore() {
     },
 
     deleteWapp: async (id: string) => {
-      setState("wapps", prev => prev.filter(w => w.id !== id));
-      await tauriService.saveWapps([...state.wapps]);
+      const updated = state.wapps.filter(w => w.id !== id);
+      setState("wapps", updated);
+      await tauriService.saveWapps(updated);
+      actions.addNotification("Application removed", "info");
     },
 
     cancelBuild: (id: string) => {
@@ -73,6 +102,7 @@ function createAppStore() {
       });
 
       setState({ showAddModal: false, activeTab: "all" });
+      actions.addNotification(`Building ${data.name}...`, "info");
 
       try {
         await tauriService.buildWapp({
@@ -87,6 +117,7 @@ function createAppStore() {
           b.logs = [`Error: ${err}`, ...b.logs];
           b.state = "error";
         }));
+        actions.addNotification(`Build failed: ${err}`, "error");
       }
     },
 
@@ -97,13 +128,26 @@ function createAppStore() {
         await tauriService.installDependencies();
       } catch (err) {
         setState({ installLogs: [`Error: ${err}`, ...state.installLogs], installState: "error" });
+        actions.addNotification("Installation failed", "error");
       }
     }
   };
 
   // Listeners
   onMount(() => {
-    listen<BuildProgressEvent>("build-progress", (event) => {
+    // Global Keyboard Shortcut (Ctrl+K or Cmd+K)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        actions.setShowAddModal(!state.showAddModal);
+      }
+      if (e.key === "Escape" && state.showAddModal) {
+        actions.setShowAddModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    const buildUnlisten = listen<BuildProgressEvent>("build-progress", (event) => {
       const { app_id, message, status } = event.payload;
       if (!state.activeBuilds[app_id]) return;
 
@@ -117,19 +161,30 @@ function createAppStore() {
 
       if (newState === "success") {
         actions.loadWapps();
+        actions.addNotification(`${state.activeBuilds[app_id].name} is ready!`, "success");
         setTimeout(() => actions.cancelBuild(app_id), 3000);
+      } else if (newState === "error") {
+        actions.addNotification(`Build failed for ${state.activeBuilds[app_id].name}`, "error");
       }
     });
 
-    listen<InstallProgressEvent>("install-progress", (event) => {
+    const installUnlisten = listen<InstallProgressEvent>("install-progress", (event) => {
       const { message, status } = event.payload;
       setState("installLogs", prev => [message, ...prev]);
       if (status === "done") {
         setState("installState", "done");
+        actions.addNotification("Dependencies installed successfully", "success");
         actions.checkDeps();
       } else if (status === "error") {
         setState("installState", "error");
+        actions.addNotification("Dependency installation failed", "error");
       }
+    });
+
+    onCleanup(() => {
+      window.removeEventListener("keydown", handleKeyDown);
+      buildUnlisten.then(f => f());
+      installUnlisten.then(f => f());
     });
   });
 

@@ -1,4 +1,8 @@
 use crate::models::SiteInfo;
+use scraper::{Html, Selector};
+use reqwest::header::USER_AGENT;
+
+const MODERN_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
 #[tauri::command]
 pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
@@ -7,56 +11,72 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
         target_url = format!("https://{}", target_url);
     }
 
-    let response = reqwest::get(&target_url)
+    let client = reqwest::Client::new();
+    let response = client.get(&target_url)
+        .header(USER_AGENT, MODERN_USER_AGENT)
+        .send()
         .await
         .map_err(|e| e.to_string())?;
     
-    let html = response.text().await.map_err(|e| e.to_string())?;
+    let html_content = response.text().await.map_err(|e| e.to_string())?;
+    let document = Html::parse_document(&html_content);
     
     let mut title = None;
     let mut icon = None;
 
-    // Simple parsing for title
-    if let Some(t_start) = html.find("<title>") {
-        if let Some(t_end) = html[t_start..].find("</title>") {
-            title = Some(html[t_start + 7..t_start + t_end].to_string());
+    // 1. Try OpenGraph Title then fallback to <title>
+    let og_title_selector = Selector::parse("meta[property='og:title']").unwrap();
+    let title_selector = Selector::parse("title").unwrap();
+
+    if let Some(meta) = document.select(&og_title_selector).next() {
+        title = meta.value().attr("content").map(|s| s.to_string());
+    }
+    
+    if title.is_none() {
+        if let Some(t) = document.select(&title_selector).next() {
+            title = Some(t.inner_html());
         }
     }
 
-    // Simple parsing for icon
-    let patterns = vec!["rel=\"icon\"", "rel=\"shortcut icon\"", "rel='icon'", "rel='shortcut icon'"];
-    for pattern in patterns {
-        if let Some(idx) = html.find(pattern) {
-            let link_start = html[..idx].rfind("<link");
-            if let Some(start) = link_start {
-                let link_tag = &html[start..];
-                if let Some(h_idx) = link_tag.find("href=") {
-                    let quote = link_tag[h_idx+5..h_idx+6].to_string();
-                    let h_start = h_idx + 6;
-                    if let Some(h_end) = link_tag[h_start..].find(&quote) {
-                        let mut icon_path = link_tag[h_start..h_start + h_end].to_string();
-                        
-                        if icon_path.starts_with("//") {
-                             icon_path = format!("https:{}", icon_path);
-                        } else if icon_path.starts_with("/") {
-                            let parsed_url = url::Url::parse(&target_url).unwrap();
-                            icon_path = format!("{}://{}{}", parsed_url.scheme(), parsed_url.host_str().unwrap_or(""), icon_path);
-                        } else if !icon_path.starts_with("http") {
-                             let parsed_url = url::Url::parse(&target_url).unwrap();
-                             let base = format!("{}://{}/", parsed_url.scheme(), parsed_url.host_str().unwrap_or(""));
-                             icon_path = format!("{}{}", base, icon_path);
-                        }
-                        icon = Some(icon_path);
-                        break;
+    // 2. Try high-res icons (apple-touch-icon, then rel icon)
+    let icon_selectors = vec![
+        "link[rel='apple-touch-icon']",
+        "link[rel='icon']",
+        "link[rel='shortcut icon']",
+        "meta[property='og:image']",
+    ];
+
+    for selector_str in icon_selectors {
+        let selector = Selector::parse(selector_str).unwrap();
+        if let Some(link) = document.select(&selector).next() {
+            let attr = if selector_str.contains("meta") { "content" } else { "href" };
+            if let Some(href) = link.value().attr(attr) {
+                let mut icon_path = href.to_string();
+                
+                // Resolve relative URLs
+                if icon_path.starts_with("//") {
+                    icon_path = format!("https:{}", icon_path);
+                } else if icon_path.starts_with("/") {
+                    if let Ok(parsed_url) = url::Url::parse(&target_url) {
+                        icon_path = format!("{}://{}{}", parsed_url.scheme(), parsed_url.host_str().unwrap_or(""), icon_path);
+                    }
+                } else if !icon_path.starts_with("http") {
+                    if let Ok(parsed_url) = url::Url::parse(&target_url) {
+                        let base = format!("{}://{}/", parsed_url.scheme(), parsed_url.host_str().unwrap_or(""));
+                        icon_path = format!("{}{}", base, icon_path);
                     }
                 }
+                icon = Some(icon_path);
+                break;
             }
         }
     }
 
+    // 3. Fallback to basic /favicon.ico
     if icon.is_none() {
-        let parsed_url = url::Url::parse(&target_url).map_err(|e| e.to_string())?;
-        icon = Some(format!("{}://{}/favicon.ico", parsed_url.scheme(), parsed_url.host_str().unwrap_or("")));
+        if let Ok(parsed_url) = url::Url::parse(&target_url) {
+            icon = Some(format!("{}://{}/favicon.ico", parsed_url.scheme(), parsed_url.host_str().unwrap_or("")));
+        }
     }
 
     Ok(SiteInfo { title, icon })
