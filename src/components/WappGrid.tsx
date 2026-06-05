@@ -1,21 +1,22 @@
 import { Component, For, Show } from "solid-js";
-import { FolderOpen } from "lucide-solid";
 import { WappCard, LoadingCard } from "./WappCard";
-import { WappConfig, ActiveBuild } from "../types";
+import { useAppStore } from "../store";
+import { tauriService } from "../services/tauri";
 
-interface WappGridProps {
-  wapps: WappConfig[];
-  activeBuilds: ActiveBuild[];
-  filterCategory: string;
-  setFilterCategory: (cat: string) => void;
-  onLaunch: (path: string) => void;
-  onDelete: (id: string) => void;
-  onCancelBuild: (id: string) => void;
-  onOpenFolder: () => void;
-  onAddClick: () => void;
-}
+export const WappGrid: Component = () => {
+  const [state, actions] = useAppStore();
 
-export const WappGrid: Component<WappGridProps> = (props) => {
+  const filteredWapps = () => {
+    if (state.filterCategory === "All") return state.wapps;
+    return state.wapps.filter(w => w.category === state.filterCategory);
+  };
+
+  const filteredBuilds = () => {
+    const builds = Object.values(state.activeBuilds);
+    if (state.filterCategory === "All") return builds;
+    return builds.filter(b => b.category === state.filterCategory);
+  };
+
   return (
     <>
       <div class="workspace-header">
@@ -24,8 +25,8 @@ export const WappGrid: Component<WappGridProps> = (props) => {
             {(cat) => (
               <button 
                 class="filter-btn" 
-                classList={{ active: props.filterCategory === cat }}
-                onClick={() => props.setFilterCategory(cat)}
+                classList={{ active: state.filterCategory === cat }}
+                onClick={() => actions.setFilterCategory(cat)}
               >
                 {cat}
               </button>
@@ -35,36 +36,33 @@ export const WappGrid: Component<WappGridProps> = (props) => {
       </div>
 
       <div class="wapp-grid">
-        {/* Show Active Builds first */}
-        <For each={props.activeBuilds}>
+        <For each={filteredBuilds()}>
           {(build) => (
             <LoadingCard 
               name={build.name}
               category={build.category}
               status={build.state === "error" ? "Build failed" : "Building..."}
               log={build.logs[0] || ""}
-              onCancel={() => props.onCancelBuild(build.id)}
+              onCancel={() => actions.cancelBuild(build.id)}
             />
           )}
         </For>
 
-        {/* Show Installed Wapps */}
-        <For each={props.wapps}>
+        <For each={filteredWapps()}>
           {(wapp) => (
             <WappCard 
               wapp={wapp}
-              onLaunch={props.onLaunch}
-              onDelete={props.onDelete}
+              onLaunch={(path) => tauriService.launchWapp(path)}
+              onDelete={(id) => actions.deleteWapp(id)}
             />
           )}
         </For>
 
-        {/* Empty State */}
-        <Show when={props.wapps.length === 0 && props.activeBuilds.length === 0}>
+        <Show when={state.wapps.length === 0 && Object.keys(state.activeBuilds).length === 0}>
           <div class="empty-state">
             <div class="empty-title">Your workspace is empty</div>
             <div class="empty-desc">Convert your first website into a desktop app to see it here.</div>
-            <button class="btn-primary" onClick={props.onAddClick} style="margin-top: 0.5rem; font-size: 0.8rem;">
+            <button class="btn-primary" onClick={() => actions.setShowAddModal(true)} style="margin-top: 0.5rem; font-size: 0.8rem;">
               Create your first wapp
             </button>
           </div>

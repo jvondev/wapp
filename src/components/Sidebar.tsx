@@ -1,17 +1,10 @@
-import { Component, Show } from "solid-js";
+import { Component } from "solid-js";
 import { Folder, Settings, Plus } from "lucide-solid";
-import { DependencyStatus } from "../types";
+import { useAppStore } from "../store";
 
-interface SidebarProps {
-  activeTab: string;
-  setActiveTab: (tab: "all" | "settings") => void;
-  onAddClick: () => void;
-  depStatus: DependencyStatus | null;
-  isCheckingDeps: boolean;
-  onCheckDeps: () => void;
-}
+export const Sidebar: Component = () => {
+  const [state, actions] = useAppStore();
 
-export const Sidebar: Component<SidebarProps> = (props) => {
   return (
     <aside class="sidebar">
       <div class="brand">
@@ -19,7 +12,7 @@ export const Sidebar: Component<SidebarProps> = (props) => {
         <span class="brand-name">wapp</span>
       </div>
 
-      <button class="sidebar-add-btn" onClick={props.onAddClick}>
+      <button class="sidebar-add-btn" onClick={() => actions.setShowAddModal(true)}>
         <Plus size={18} />
         New Wapp
       </button>
@@ -27,16 +20,16 @@ export const Sidebar: Component<SidebarProps> = (props) => {
       <nav class="nav-group">
         <button 
           class="nav-item" 
-          classList={{ active: props.activeTab === "all" }}
-          onClick={() => props.setActiveTab("all")}
+          classList={{ active: state.activeTab === "all" }}
+          onClick={() => actions.setActiveTab("all")}
         >
           <Folder size={16} />
           All Wapps
         </button>
         <button 
           class="nav-item" 
-          classList={{ active: props.activeTab === "settings" }}
-          onClick={() => props.setActiveTab("settings")}
+          classList={{ active: state.activeTab === "settings" }}
+          onClick={() => actions.setActiveTab("settings")}
         >
           <Settings size={16} />
           Setup Guide
@@ -44,18 +37,18 @@ export const Sidebar: Component<SidebarProps> = (props) => {
       </nav>
 
       <div class="sidebar-footer">
-        <div class="status-badge" onClick={props.onCheckDeps} style="cursor: pointer;">
+        <div class="status-badge" onClick={() => actions.checkDeps()} style="cursor: pointer;">
           <div 
             class="status-dot" 
             classList={{ 
-              active: !!props.depStatus?.node_installed && !!props.depStatus?.rust_installed, 
-              inactive: !props.depStatus?.node_installed || !props.depStatus?.rust_installed 
+              active: !!state.depStatus?.node_installed && !!state.depStatus?.rust_installed, 
+              inactive: !state.depStatus?.node_installed || !state.depStatus?.rust_installed 
             }} 
           />
           <span>
-            {props.isCheckingDeps 
+            {state.isCheckingDeps 
               ? "Checking..." 
-              : props.depStatus?.node_installed && props.depStatus?.rust_installed 
+              : state.depStatus?.node_installed && state.depStatus?.rust_installed 
                 ? "System Ready" 
                 : "Setup Required"
             }

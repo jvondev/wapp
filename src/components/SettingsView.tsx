@@ -1,15 +1,10 @@
 import { Component, For, Show } from "solid-js";
 import { CheckCircle2, Loader2 } from "lucide-solid";
-import { DependencyStatus } from "../types";
+import { useAppStore } from "../store";
 
-interface SettingsViewProps {
-  depStatus: DependencyStatus | null;
-  installState: "idle" | "running" | "done" | "error";
-  installLogs: string[];
-  onInstall: () => void;
-}
+export const SettingsView: Component = () => {
+  const [state, actions] = useAppStore();
 
-export const SettingsView: Component<SettingsViewProps> = (props) => {
   return (
     <div class="settings-container">
       <div class="settings-card">
@@ -23,8 +18,8 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               <span class="dep-desc">Required for packaging scripts</span>
             </div>
             <div class="dep-status">
-              <Show when={props.depStatus?.node_installed} fallback={<span class="dep-badge missing">Missing</span>}>
-                <span class="dep-badge ok">{props.depStatus?.node_version}</span>
+              <Show when={state.depStatus?.node_installed} fallback={<span class="dep-badge missing">Missing</span>}>
+                <span class="dep-badge ok">{state.depStatus?.node_version}</span>
                 <CheckCircle2 size={14} color="#10b981" />
               </Show>
             </div>
@@ -36,7 +31,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
               <span class="dep-desc">Required for native compilation</span>
             </div>
             <div class="dep-status">
-              <Show when={props.depStatus?.rust_installed} fallback={<span class="dep-badge missing">Missing</span>}>
+              <Show when={state.depStatus?.rust_installed} fallback={<span class="dep-badge missing">Missing</span>}>
                 <span class="dep-badge ok">Installed</span>
                 <CheckCircle2 size={14} color="#10b981" />
               </Show>
@@ -45,7 +40,7 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
         </div>
       </div>
 
-      <Show when={!props.depStatus?.node_installed || !props.depStatus?.rust_installed}>
+      <Show when={!state.depStatus?.node_installed || !state.depStatus?.rust_installed}>
         <div class="settings-card" style="border-color: rgba(59, 130, 246, 0.3); background-color: rgba(59, 130, 246, 0.02);">
           <h3>Automatic Setup</h3>
           <p>Click below to download and install all missing dependencies automatically.</p>
@@ -53,15 +48,15 @@ export const SettingsView: Component<SettingsViewProps> = (props) => {
           <button 
             class="btn-primary" 
             style="margin-top: 1rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-            onClick={props.onInstall}
-            disabled={props.installState === "running"}
+            onClick={() => actions.installDeps()}
+            disabled={state.installState === "running"}
           >
-            {props.installState === "running" ? <Loader2 size={16} class="loading-spinner" /> : "Install Dependencies"}
+            {state.installState === "running" ? <Loader2 size={16} class="loading-spinner" /> : "Install Dependencies"}
           </button>
 
-          <Show when={props.installState !== "idle"}>
+          <Show when={state.installState !== "idle"}>
             <div style="margin-top: 1rem; background: #000; border: 1px solid #333; border-radius: 4px; padding: 0.75rem; max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.7rem;">
-              <For each={props.installLogs}>
+              <For each={state.installLogs}>
                 {(log) => <div style="margin-bottom: 2px;">{log}</div>}
               </For>
             </div>

@@ -1,75 +1,118 @@
 import { Component, Show, createSignal } from "solid-js";
 import { Globe, Plus, Settings, X, Loader2 } from "lucide-solid";
+import { useAppStore } from "../store";
+import { tauriService } from "../services/tauri";
 
-interface CommandCenterProps {
-  show: boolean;
-  onClose: () => void;
-  onSubmit: (data: {
-    name: string;
-    url: string;
-    category: string;
-    width: number;
-    height: number;
-    hideTitle: boolean;
-    maximize: boolean;
-  }) => void;
-  faviconUrl: string;
-  isFetchingInfo: boolean;
-  formUrl: string;
-  onUrlInput: (val: string) => void;
-  onUrlBlur: () => void;
-  formName: string;
-  onNameInput: (val: string) => void;
-}
+export const CommandCenter: Component = () => {
+  const [state, actions] = useAppStore();
 
-export const CommandCenter: Component<CommandCenterProps> = (props) => {
   const [showAdvanced, setShowAdvanced] = createSignal(false);
+  const [url, setUrl] = createSignal("");
+  const [name, setName] = createSignal("");
   const [category, setCategory] = createSignal("All");
   const [width, setWidth] = createSignal(1280);
   const [height, setHeight] = createSignal(800);
   const [hideTitle, setHideTitle] = createSignal(true);
   const [maximize, setMaximize] = createSignal(true);
 
+  const [faviconUrl, setFaviconUrl] = createSignal("");
+  const [isFetchingInfo, setIsFetchingInfo] = createSignal(false);
+
+  const fetchSiteInfo = async (urlVal: string) => {
+    if (!urlVal.includes(".") || urlVal.length < 4) return;
+    setIsFetchingInfo(true);
+    try {
+      const info = await tauriService.getSiteInfo(urlVal);
+      if (info.icon) setFaviconUrl(info.icon);
+      if (info.title && !name()) {
+        let cleanTitle = info.title.split(/ - | \| |: /)[0].trim();
+        setName(cleanTitle);
+      }
+    } catch (err) {
+      console.error("Failed to fetch site info:", err);
+      const cleanUrl = urlVal.startsWith("http") ? urlVal : `https://${urlVal}`;
+      setFaviconUrl(`https://www.google.com/s2/favicons?domain=${cleanUrl}&sz=128`);
+    } finally {
+      setIsFetchingInfo(false);
+    }
+  };
+
+  const handleUrlChange = (val: string) => {
+    setUrl(val);
+    if (val.includes(".")) {
+      const cleanUrl = val.startsWith("http") ? val : `https://${val}`;
+      setFaviconUrl(`https://www.google.com/s2/favicons?domain=${cleanUrl}&sz=128`);
+    }
+  };
+
+  const autoFillName = () => {
+    let urlVal = url().trim();
+    if (!urlVal) return;
+    if (!urlVal.startsWith("http://") && !urlVal.startsWith("https://")) {
+      urlVal = "https://" + urlVal;
+      setUrl(urlVal);
+    }
+    if (name()) return;
+    try {
+      const parsed = new URL(urlVal);
+      const parts = parsed.hostname.replace("www.", "").split(".");
+      if (parts.length >= 2) {
+        let brand = parts[parts.length - 2];
+        brand = brand.charAt(0).toUpperCase() + brand.slice(1);
+        if (parts.length > 2) {
+          const sub = parts[0].toLowerCase();
+          const commonAppSubs = ["app", "web", "my", "dashboard", "console", "portal", "cloud"];
+          if (commonAppSubs.includes(sub)) setName(`${brand} App`);
+          else setName(`${sub.charAt(0).toUpperCase() + sub.slice(1)} ${brand}`);
+        } else setName(brand);
+      }
+    } catch (_) {}
+  };
+
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    props.onSubmit({
-      name: props.formName,
-      url: props.formUrl,
+    actions.startBuild({
+      name: name(),
+      url: url(),
       category: category(),
       width: width(),
       height: height(),
       hideTitle: hideTitle(),
       maximize: maximize()
-    });
+    }, faviconUrl());
+
+    // Reset local state
+    setUrl("");
+    setName("");
+    setFaviconUrl("");
   };
 
   return (
-    <Show when={props.show}>
-      <div class="command-center-overlay" onClick={props.onClose}>
+    <Show when={state.showAddModal}>
+      <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
         <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
           
-          {/* Live Interactive Preview */}
-          <Show when={props.formUrl.length > 3 && props.formUrl.includes(".")}>
+          <Show when={url().length > 3 && url().includes(".")}>
             <div class="floating-preview">
               <div class="preview-top-bar">
-                <Show when={props.faviconUrl} fallback={<div class="wapp-icon" style="width: 20px; height: 20px; font-size: 0.6rem; border-radius: 4px;">{props.formName.charAt(0) || "W"}</div>}>
-                  <img src={props.faviconUrl} class="preview-favicon" />
+                <Show when={faviconUrl()} fallback={<div class="wapp-icon" style="width: 20px; height: 20px; font-size: 0.6rem; border-radius: 4px;">{name().charAt(0) || "W"}</div>}>
+                  <img src={faviconUrl()} class="preview-favicon" />
                 </Show>
                 <div class="wapp-info" style="gap: 0;">
                   <span class="wapp-name" style="font-size: 0.8rem;">
-                     {props.isFetchingInfo ? "Fetching site info..." : (props.formName || "Preview")}
+                     {isFetchingInfo() ? "Fetching site info..." : (name() || "Preview")}
                   </span>
-                  <span class="preview-app-meta" style="font-size: 0.6rem;">{props.formUrl}</span>
+                  <span class="wapp-url" style="font-size: 0.6rem;">{url()}</span>
                 </div>
                 <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
-                   {props.isFetchingInfo && <Loader2 size={12} class="loading-spinner" />}
+                   {isFetchingInfo() && <Loader2 size={12} class="loading-spinner" />}
                    <button class="btn-icon" title="Settings" onClick={() => setShowAdvanced(!showAdvanced())}>
                       <Settings size={14} />
                    </button>
                 </div>
               </div>
               <iframe 
-                src={props.formUrl.startsWith("http") ? props.formUrl : `https://${props.formUrl}`} 
+                src={url().startsWith("http") ? url() : `https://${url()}`} 
                 class="interactive-viewport"
                 title="Wapp Preview"
               />
@@ -84,15 +127,15 @@ export const CommandCenter: Component<CommandCenterProps> = (props) => {
                 type="text" 
                 class="command-input" 
                 placeholder="Paste URL (e.g. app.todoist.com)..." 
-                value={props.formUrl}
-                onInput={(e) => props.onUrlInput(e.currentTarget.value)}
-                onBlur={props.onUrlBlur}
+                value={url()}
+                onInput={(e) => handleUrlChange(e.currentTarget.value)}
+                onBlur={() => { autoFillName(); fetchSiteInfo(url()); }}
               />
               <button 
                 type="submit" 
                 class="btn-command"
                 style="padding: 0.6rem 1.25rem; font-size: 0.85rem;"
-                disabled={!props.formUrl || !props.formName}
+                disabled={!url() || !name()}
               >
                 <Plus size={16} />
                 Create Wapp
@@ -100,7 +143,6 @@ export const CommandCenter: Component<CommandCenterProps> = (props) => {
             </form>
           </div>
 
-          {/* Advanced Settings Card */}
           <Show when={showAdvanced()}>
             <div class="advanced-card">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
@@ -114,8 +156,8 @@ export const CommandCenter: Component<CommandCenterProps> = (props) => {
                   type="text" 
                   class="input-field" 
                   placeholder="e.g. Todoist App" 
-                  value={props.formName}
-                  onInput={(e) => props.onNameInput(e.currentTarget.value)}
+                  value={name()}
+                  onInput={(e) => setName(e.currentTarget.value)}
                 />
               </div>
 
