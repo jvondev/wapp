@@ -350,7 +350,7 @@ fn build_wapp(
                     hide_title_bar,
                     category: category_clone.clone(),
                     created_at: created_at.clone(),
-                    path: path_str,
+                    path: path_str.clone(),
                 };
             } else {
                 current_wapps.push(WappConfig {
@@ -363,17 +363,20 @@ fn build_wapp(
                     hide_title_bar,
                     category: category_clone.clone(),
                     created_at: created_at.clone(),
-                    path: path_str,
+                    path: path_str.clone(),
                 });
             }
 
             let _ = save_wapps(app_handle_clone.clone(), current_wapps);
 
+            // Automatically launch the app/installer after successful build
+            let _ = launch_wapp(path_str);
+
             let _ = app_handle_clone.emit(
                 "build-progress",
                 BuildProgress {
                     app_id: id_str.clone(),
-                    message: format!("Successfully packaged {}!", name_clone),
+                    message: format!("Successfully packaged {}! Launching now...", name_clone),
                     status: "success".to_string(),
                 },
             );
