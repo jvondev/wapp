@@ -62,7 +62,7 @@ interface ActiveBuild {
 
 function App() {
   // Navigation & UI state
-  const [activeTab, setActiveTab] = createSignal<"inbox" | "settings">("inbox");
+  const [activeTab, setActiveTab] = createSignal<"all" | "settings">("all");
   const [wapps, setWapps] = createSignal<WappConfig[]>([]);
   const [activeBuilds, setActiveBuilds] = createSignal<Record<string, ActiveBuild>>({});
   const [showAddModal, setShowAddModal] = createSignal(false);
@@ -73,7 +73,7 @@ function App() {
   // Form State
   const [formUrl, setFormUrl] = createSignal("");
   const [formName, setFormName] = createSignal("");
-  const [formCategory, setFormCategory] = createSignal("Inbox");
+  const [formCategory, setFormCategory] = createSignal("All");
   const [formWidth, setFormWidth] = createSignal(1280);
   const [formHeight, setFormHeight] = createSignal(800);
   const [formHideTitle, setFormHideTitle] = createSignal(true);
@@ -209,7 +209,7 @@ function App() {
     }));
 
     setShowAddModal(false);
-    setActiveTab("inbox");
+    setActiveTab("all");
     
     // Reset form
     setFormUrl("");
@@ -294,11 +294,11 @@ function App() {
         <nav class="nav-group">
           <button 
             class="nav-item" 
-            classList={{ active: activeTab() === "inbox" }}
-            onClick={() => setActiveTab("inbox")}
+            classList={{ active: activeTab() === "all" }}
+            onClick={() => setActiveTab("all")}
           >
             <Folder size={16} />
-            Inbox
+            All Wapps
           </button>
           <button 
             class="nav-item" 
@@ -338,10 +338,10 @@ function App() {
       <main class="main-panel">
         <header class="header">
           <h2 class="header-title">
-            {activeTab() === "inbox" && "Inbox"}
+            {activeTab() === "all" && "All Wapps"}
             {activeTab() === "settings" && "Environment setup"}
           </h2>
-          <Show when={activeTab() === "inbox"}>
+          <Show when={activeTab() === "all"}>
             <button class="filter-btn border-btn" onClick={openWorkspaceFolder}>
               <FolderOpen size={12} />
               Open Folder
@@ -351,11 +351,11 @@ function App() {
 
         <div class="content">
           <div class="tab-view">
-            {/* Inbox View */}
-            <Show when={activeTab() === "inbox"}>
+            {/* All Wapps View */}
+            <Show when={activeTab() === "all"}>
               <div class="workspace-header">
                 <div class="workspace-filters">
-                  <For each={["All", "Inbox", "Work", "Enterprise"]}>
+                  <For each={["All", "Work", "Enterprise"]}>
                     {(cat) => (
                       <button 
                         class="filter-btn" 
@@ -384,7 +384,7 @@ function App() {
                         </div>
                       </div>
                       <div class="wapp-card-body">
-                         <span class="wapp-badge inbox">{build.category}</span>
+                         <span class="wapp-badge all">{build.category}</span>
                       </div>
                       <div class="wapp-card-footer">
                          <span class="wapp-date" style="color: #666; font-size: 0.6rem;">
@@ -604,7 +604,7 @@ function App() {
                       value={formCategory()} 
                       onChange={(e) => setFormCategory(e.currentTarget.value)}
                     >
-                      <option value="Inbox">Inbox</option>
+                      <option value="All">All</option>
                       <option value="Work">Work</option>
                       <option value="Enterprise">Enterprise</option>
                     </select>
