@@ -28,4 +28,12 @@ export const tauriService = {
   openWorkspaceFolder: () => invoke<void>("open_workspace_folder"),
   
   getSiteInfo: (url: string) => invoke<SiteInfo>("get_site_info", { url }),
+  
+  openPreview: (args: { url: string; x: number; y: number; width: number; height: number }) => 
+    invoke<void>("open_preview", args),
+    
+  updatePreviewBounds: (args: { x: number; y: number; width: number; height: number }) => 
+    invoke<void>("update_preview_bounds", args),
+    
+  closePreview: () => invoke<void>("close_preview"),
 };

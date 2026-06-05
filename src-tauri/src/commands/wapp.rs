@@ -1,5 +1,5 @@
 use std::process::{Command, Stdio};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use tauri::{AppHandle, Emitter};

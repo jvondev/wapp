@@ -1,4 +1,4 @@
-import { Component, Show, createSignal, For } from "solid-js";
+import { Component, Show, createSignal, For, onMount, onCleanup, createEffect } from "solid-js";
 import { Globe, Plus, Settings, X, Loader2, Play } from "lucide-solid";
 import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
@@ -17,7 +17,9 @@ export const CommandCenter: Component = () => {
 
   const [faviconUrl, setFaviconUrl] = createSignal("");
   const [isFetchingInfo, setIsFetchingInfo] = createSignal(false);
-  const [previewBlocked, setPreviewBlocked] = createSignal(false);
+  const [showPreview, setShowPreview] = createSignal(false);
+
+  let previewPlaceholder: HTMLDivElement | undefined;
 
   const isUrl = () => url().includes(".") && url().length > 3;
 
@@ -29,10 +31,47 @@ export const CommandCenter: Component = () => {
     ).slice(0, 5);
   };
 
+  const syncPreviewPosition = () => {
+    if (!previewPlaceholder || !showPreview()) return;
+    const rect = previewPlaceholder.getBoundingClientRect();
+    tauriService.updatePreviewBounds({
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height
+    });
+  };
+
+  // Close preview when modal closes
+  createEffect(() => {
+    if (!state.showAddModal) {
+      setShowPreview(false);
+      tauriService.closePreview();
+    }
+  });
+
+  // Open/Update preview when it becomes visible
+  createEffect(() => {
+    if (showPreview() && previewPlaceholder && isUrl()) {
+      const rect = previewPlaceholder.getBoundingClientRect();
+      const targetUrl = url().startsWith("http") ? url() : `https://${url()}`;
+      tauriService.openPreview({
+        url: targetUrl,
+        x: rect.left,
+        y: rect.top,
+        width: rect.width,
+        height: rect.height
+      });
+    } else if (!showPreview()) {
+      tauriService.closePreview();
+    }
+  });
+
   const fetchSiteInfo = async (urlVal: string) => {
     if (!urlVal.includes(".") || urlVal.length < 4) return;
     setIsFetchingInfo(true);
-    setPreviewBlocked(false);
+    setShowPreview(false); // Hide until success
+    
     try {
       const info = await tauriService.getSiteInfo(urlVal);
       if (info.icon) setFaviconUrl(info.icon);
@@ -40,10 +79,13 @@ export const CommandCenter: Component = () => {
         let cleanTitle = info.title.split(/ - | \| |: /)[0].trim();
         setName(cleanTitle);
       }
+      // If we reach here, site is valid, show the "real" sub-webview preview
+      setShowPreview(true);
     } catch (err) {
       console.error("Failed to fetch site info:", err);
       const cleanUrl = urlVal.startsWith("http") ? urlVal : `https://${urlVal}`;
       setFaviconUrl(`https://www.google.com/s2/favicons?domain=${cleanUrl}&sz=128`);
+      setShowPreview(false); // Keep hidden if site unreachable/error
     } finally {
       setIsFetchingInfo(false);
     }
@@ -54,6 +96,8 @@ export const CommandCenter: Component = () => {
     if (val.includes(".")) {
       const cleanUrl = val.startsWith("http") ? val : `https://${val}`;
       setFaviconUrl(`https://www.google.com/s2/favicons?domain=${cleanUrl}&sz=128`);
+    } else {
+      setShowPreview(false);
     }
   };
 
@@ -97,14 +141,34 @@ export const CommandCenter: Component = () => {
     setUrl("");
     setName("");
     setFaviconUrl("");
+    setShowPreview(false);
   };
+
+  onMount(() => {
+    const observer = new ResizeObserver(() => syncPreviewPosition());
+    window.addEventListener("resize", syncPreviewPosition);
+    
+    // We need to wait for placeholder to exist
+    const timer = setInterval(() => {
+       if (previewPlaceholder) {
+          observer.observe(previewPlaceholder);
+          clearInterval(timer);
+       }
+    }, 100);
+
+    onCleanup(() => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncPreviewPosition);
+      clearInterval(timer);
+    });
+  });
 
   return (
     <Show when={state.showAddModal}>
       <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
         <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
           
-          <Show when={isUrl()}>
+          <Show when={isUrl() && (showPreview() || isFetchingInfo())}>
             <div class="floating-preview">
               <div class="preview-top-bar">
                 <Show when={faviconUrl()} fallback={<div class="wapp-icon" style="width: 20px; height: 20px; font-size: 0.6rem; border-radius: 4px;">{name().charAt(0) || "W"}</div>}>
@@ -124,21 +188,12 @@ export const CommandCenter: Component = () => {
                 </div>
               </div>
               
-              <Show when={!previewBlocked()} fallback={
-                <div style="height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; background: #09090b; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
-                   <Globe size={32} style="color: #27272a" />
-                   <span style="font-size: 0.75rem; color: #52525b;">Secure site (Preview blocked by website)</span>
-                </div>
-              }>
-                <iframe 
-                  src={url().startsWith("http") ? url() : `https://${url()}`} 
-                  class="interactive-viewport"
-                  title="Wapp Preview"
-                  onLoad={() => {
-                    // Simple heuristic: if it loads extremely fast and empty, it might be blocked
-                  }}
-                />
-              </Show>
+              {/* This div acts as a portal placeholder for the native sub-webview */}
+              <div 
+                ref={previewPlaceholder} 
+                class="interactive-viewport" 
+                style="background: #000; display: block;"
+              />
             </div>
           </Show>
 
@@ -168,7 +223,6 @@ export const CommandCenter: Component = () => {
             </form>
           </div>
 
-          {/* Search Results for Existing Wapps */}
           <Show when={filteredExistingWapps().length > 0}>
              <div class="search-results">
                 <div style="padding: 0.5rem 1rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #52525b; border-bottom: 1px solid rgba(255,255,255,0.03);">Existing Applications</div>

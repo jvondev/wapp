@@ -106,11 +106,16 @@ function createAppStore() {
 
       try {
         await tauriService.buildWapp({
-          ...data,
           id: uniqueId,
+          name: data.name,
+          url: data.url,
           icon: favicon || null,
+          width: data.width,
+          height: data.height,
           hide_title_bar: data.hideTitle,
-          created_at: new Date().toLocaleDateString()
+          category: data.category,
+          created_at: new Date().toLocaleDateString(),
+          maximize: data.maximize
         });
       } catch (err) {
         setState("activeBuilds", uniqueId, produce(b => {
