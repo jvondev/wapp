@@ -131,6 +131,7 @@ function createAppStore() {
         }));
         actions.addNotification(`Build failed: ${err}`, "error");
       }
+    },
     editWapp: async (wappId: string, data: any, icon: string | null) => {
       try {
         await tauriService.editWapp({

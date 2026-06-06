@@ -1,2 +1,47 @@
-node_modules
-dist
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+dist/
+.pnp
+.pnp.js
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Vite / Build ──────────────────────────────────────────────────────────────
+dist-ssr/
+*.local
+
+# ── Environment / Secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Rust / Cargo ──────────────────────────────────────────────────────────────
+src-tauri/target/
+wapp-base/src-tauri/target/
+
+# ── Tauri ─────────────────────────────────────────────────────────────────────
+src-tauri/gen/schemas/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+Desktop.ini
+
+# ── Editor ────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── NPM binaries (fetched at build time, not stored in git) ───────────────────
+npm/wapp-base/bin/
