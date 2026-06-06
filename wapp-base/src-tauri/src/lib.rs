@@ -91,7 +91,7 @@ pub fn run() {
             
             if let Some(icon_str) = &icon {
                 if let Some(img) = decode_base64_icon(icon_str) {
-                    builder = builder.icon(img);
+                    builder = builder.icon(img).unwrap();
                 }
             }
 
