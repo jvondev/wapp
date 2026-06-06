@@ -10,6 +10,8 @@ export const tauriService = {
   
   saveWapps: (wapps: WappConfig[]) => invoke<void>("save_wapps", { wapps }),
   
+  deleteWapp: (id: string) => invoke<void>("delete_wapp", { id }),
+  
   buildWapp: (args: {
     id: string;
     name: string;

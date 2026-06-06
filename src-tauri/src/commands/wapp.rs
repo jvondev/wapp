@@ -184,3 +184,28 @@ pub fn open_workspace_folder(app_handle: AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn delete_wapp(app_handle: AppHandle, id: String) -> Result<(), String> {
+    let mut current_wapps = load_wapps(app_handle.clone());
+    
+    // Find app and its path
+    if let Some(pos) = current_wapps.iter().position(|w| w.id == id) {
+        let wapp = &current_wapps[pos];
+        let path = Path::new(&wapp.path);
+        
+        // The path points to the executable. We need to delete its parent directory
+        // because the parent directory is the specific app folder we created.
+        if let Some(parent) = path.parent() {
+            // Delete the physical files
+            let _ = fs::remove_dir_all(parent);
+        }
+        
+        // Remove from config
+        current_wapps.remove(pos);
+        let _ = save_wapps(app_handle.clone(), current_wapps);
+        Ok(())
+    } else {
+        Err("App not found".to_string())
+    }
+}

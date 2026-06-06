@@ -80,10 +80,14 @@ function createAppStore() {
     },
 
     deleteWapp: async (id: string) => {
-      const updated = state.wapps.filter(w => w.id !== id);
-      setState("wapps", updated);
-      await tauriService.saveWapps(updated);
-      actions.addNotification("Application removed", "info");
+      try {
+        await tauriService.deleteWapp(id);
+        const updated = state.wapps.filter(w => w.id !== id);
+        setState("wapps", updated);
+        actions.addNotification("Application removed", "info");
+      } catch (err) {
+        actions.addNotification(`Failed to delete: ${err}`, "error");
+      }
     },
 
     cancelBuild: (id: string) => {
@@ -167,7 +171,7 @@ function createAppStore() {
       if (newState === "success") {
         actions.loadWapps();
         actions.addNotification(`${state.activeBuilds[app_id].name} is ready!`, "success");
-        setTimeout(() => actions.cancelBuild(app_id), 3000);
+        setTimeout(() => actions.cancelBuild(app_id), 300); // 300ms instead of 3000ms
       } else if (newState === "error") {
         actions.addNotification(`Build failed for ${state.activeBuilds[app_id].name}`, "error");
       }
