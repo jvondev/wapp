@@ -1,5 +1,5 @@
 import { Component, Show, createSignal, For, onMount, onCleanup, createEffect } from "solid-js";
-import { Globe, Plus, Settings, X, Loader2, Play } from "lucide-solid";
+import { Globe, Plus, Settings, X, Loader2, Play, Minus, Square } from "lucide-solid";
 import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
 
@@ -20,6 +20,62 @@ export const CommandCenter: Component = () => {
   const [customIcon, setCustomIcon] = createSignal<string | null>(null);
   const [isFetchingInfo, setIsFetchingInfo] = createSignal(false);
   const [showPreview, setShowPreview] = createSignal(false);
+
+  const safeParse = (key: string, defaultVal: string[]) => {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return defaultVal;
+      const parsed = JSON.parse(item);
+      return Array.isArray(parsed) ? parsed : defaultVal;
+    } catch {
+      return defaultVal;
+    }
+  };
+
+  const defaultOs = safeParse("wapp_prefs_os", ["windows"]);
+  const defaultFormat = safeParse("wapp_prefs_format", ["nsis"]);
+
+  const [targetOs, setTargetOs] = createSignal<string[]>(defaultOs);
+  const [targetFormat, setTargetFormat] = createSignal<string[]>(defaultFormat);
+
+  const toggleOs = (os: string) => {
+    let current = targetOs();
+    let next = current.includes(os) ? current.filter(o => o !== os) : [...current, os];
+    if (next.length === 0) next = [os];
+    setTargetOs(next);
+    localStorage.setItem("wapp_prefs_os", JSON.stringify(next));
+
+    let formats: string[] = [];
+    if (next.includes("windows")) formats.push("nsis");
+    if (next.includes("mac")) formats.push("dmg");
+    if (next.includes("linux")) formats.push("AppImage");
+    setTargetFormat(formats);
+    localStorage.setItem("wapp_prefs_format", JSON.stringify(formats));
+  };
+
+  const toggleFormat = (fmt: string) => {
+    let current = targetFormat();
+    let next = current.includes(fmt) ? current.filter(f => f !== fmt) : [...current, fmt];
+    if (next.length === 0) next = [fmt];
+    setTargetFormat(next);
+    localStorage.setItem("wapp_prefs_format", JSON.stringify(next));
+  };
+
+  const availableFormats = () => {
+    const os = targetOs();
+    let fmts: { val: string, label: string }[] = [];
+    if (os.includes("windows")) fmts.push({ val: "nsis", label: "NSIS (.exe)" }, { val: "msi", label: "MSI (.msi)" });
+    if (os.includes("mac")) fmts.push({ val: "dmg", label: "DMG (.dmg)" }, { val: "app", label: "App Bundle (.app)" });
+    if (os.includes("linux")) fmts.push({ val: "AppImage", label: "AppImage" }, { val: "deb", label: "Debian (.deb)" });
+    return fmts;
+  };
+
+  const headerOsStyle = () => {
+    const os = targetOs();
+    if (os.includes("windows")) return "windows";
+    if (os.length > 0) return os[0];
+    return "windows";
+  };
 
   let previewPlaceholder: HTMLDivElement | undefined;
   let debounceTimer: number | undefined;
@@ -42,8 +98,8 @@ export const CommandCenter: Component = () => {
 
   const filteredExistingWapps = () => {
     if (isUrl() || url() === "") return [];
-    return state.wapps.filter(w => 
-      w.name.toLowerCase().includes(url().toLowerCase()) || 
+    return state.wapps.filter(w =>
+      w.name.toLowerCase().includes(url().toLowerCase()) ||
       w.url.toLowerCase().includes(url().toLowerCase())
     ).slice(0, 5);
   };
@@ -91,7 +147,7 @@ export const CommandCenter: Component = () => {
       return;
     }
     setIsFetchingInfo(true);
-    
+
     try {
       const info = await tauriService.getSiteInfo(urlVal);
       if (info.icon) setFaviconUrl(info.icon);
@@ -113,11 +169,11 @@ export const CommandCenter: Component = () => {
   const handleUrlChange = (val: string) => {
     setUrl(val);
     if (debounceTimer) clearTimeout(debounceTimer);
-    
+
     if (val.includes(".")) {
       const cleanUrl = val.startsWith("http") ? val : `https://${val}`;
       setFaviconUrl(`https://www.google.com/s2/favicons?domain=${cleanUrl}&sz=128`);
-      
+
       debounceTimer = window.setTimeout(() => {
         autoFillName();
         fetchSiteInfo(val);
@@ -147,7 +203,7 @@ export const CommandCenter: Component = () => {
           else setName(`${sub.charAt(0).toUpperCase() + sub.slice(1)} ${brand}`);
         } else setName(brand);
       }
-    } catch (_) {}
+    } catch (_) { }
   };
 
   const handleSubmit = (e: Event) => {
@@ -160,7 +216,9 @@ export const CommandCenter: Component = () => {
       width: width(),
       height: height(),
       hideTitle: hideTitle(),
-      maximize: maximize()
+      maximize: maximize(),
+      os: targetOs(),
+      format: targetFormat()
     }, getEffectiveIcon());
 
     setUrl("");
@@ -175,12 +233,12 @@ export const CommandCenter: Component = () => {
   onMount(() => {
     const observer = new ResizeObserver(() => syncPreviewPosition());
     window.addEventListener("resize", syncPreviewPosition);
-    
+
     const timer = setInterval(() => {
-       if (previewPlaceholder) {
-          observer.observe(previewPlaceholder);
-          clearInterval(timer);
-       }
+      if (previewPlaceholder) {
+        observer.observe(previewPlaceholder);
+        clearInterval(timer);
+      }
     }, 100);
 
     onCleanup(() => {
@@ -195,28 +253,39 @@ export const CommandCenter: Component = () => {
     <Show when={state.showAddModal}>
       <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
         <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
-          
+
           <div style="position: relative;">
             <form onSubmit={handleSubmit} class="command-bar">
               <Globe size={24} style="color: #52525b" />
-              <input 
+              <input
                 autoFocus
-                type="text" 
-                class="command-input" 
-                placeholder="Paste URL or search apps..." 
+                type="text"
+                class="command-input"
+                placeholder="Paste URL or search apps..."
                 value={url()}
                 onInput={(e) => handleUrlChange(e.currentTarget.value)}
               />
               <Show when={isUrl()}>
-                <button 
-                  type="submit" 
-                  class="btn-command"
-                  style="padding: 0.6rem 1.25rem; font-size: 0.85rem;"
-                  disabled={!url() || !name()}
-                >
-                  <Plus size={16} />
-                  Create Wapp
-                </button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <button
+                    type="button"
+                    class="btn-icon ghost"
+                    style="border-color: transparent;"
+                    onClick={() => setShowAdvanced(!showAdvanced())}
+                    title="Advanced Configuration"
+                  >
+                    <Settings size={18} />
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn-command"
+                    style="padding: 0.6rem 1.25rem; font-size: 0.85rem;"
+                    disabled={!url() || !name()}
+                  >
+                    <Plus size={16} />
+                    Create Wapp
+                  </button>
+                </div>
               </Show>
             </form>
           </div>
@@ -225,17 +294,17 @@ export const CommandCenter: Component = () => {
             <Show when={showAdvanced()}>
               <div class="advanced-card fade-in">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                   <h3 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #52525b; letter-spacing: 0.05em;">Configuration</h3>
-                   <button class="btn-icon" onClick={() => setShowAdvanced(false)}><X size={14} /></button>
+                  <h3 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #52525b; letter-spacing: 0.05em;">Configuration</h3>
+                  <button class="btn-icon" onClick={() => setShowAdvanced(false)}><X size={14} /></button>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                   <div class="advanced-field-group">
                     <label>Application Name</label>
-                    <input 
-                      type="text" 
-                      class="input-field" 
-                      placeholder="e.g. Todoist App" 
+                    <input
+                      type="text"
+                      class="input-field"
+                      placeholder="e.g. Todoist App"
                       value={name()}
                       onInput={(e) => { setName(e.currentTarget.value); setIsNameManuallyEdited(true); }}
                     />
@@ -243,18 +312,18 @@ export const CommandCenter: Component = () => {
                   <div class="advanced-field-group">
                     <label>App Icon</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                       <div class="wapp-icon" style="width: 32px; height: 32px; flex-shrink: 0;">
-                          <Show when={getEffectiveIcon()} fallback={name().charAt(0) || "W"}>
-                             <img src={getEffectiveIcon()} style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;" />
-                          </Show>
-                       </div>
-                       <button class="btn-icon" style="flex: 1; height: 32px; font-size: 0.65rem;" onClick={() => fileInput?.click()}>
-                          {customIcon() ? "Change Icon" : "Upload Custom"}
-                       </button>
-                       <input ref={fileInput} type="file" hidden accept="image/*" onInput={handleIconUpload} />
-                       <Show when={customIcon()}>
-                          <button class="btn-icon delete" onClick={() => setCustomIcon(null)}><X size={12} /></button>
-                       </Show>
+                      <div class="wapp-icon" style="width: 32px; height: 32px; flex-shrink: 0;">
+                        <Show when={getEffectiveIcon()} fallback={name().charAt(0) || "W"}>
+                          <img src={getEffectiveIcon()} style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;" />
+                        </Show>
+                      </div>
+                      <button class="btn-icon" style="flex: 1; height: 32px; font-size: 0.65rem;" onClick={() => fileInput?.click()}>
+                        {customIcon() ? "Change Icon" : "Upload Custom"}
+                      </button>
+                      <input ref={fileInput} type="file" hidden accept="image/*" onInput={handleIconUpload} />
+                      <Show when={customIcon()}>
+                        <button class="btn-icon delete" onClick={() => setCustomIcon(null)}><X size={12} /></button>
+                      </Show>
                     </div>
                   </div>
                 </div>
@@ -262,9 +331,9 @@ export const CommandCenter: Component = () => {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                   <div class="advanced-field-group">
                     <label>Category</label>
-                    <select 
-                      class="input-field" 
-                      value={category()} 
+                    <select
+                      class="input-field"
+                      value={category()}
                       onChange={(e) => setCategory(e.currentTarget.value)}
                     >
                       <option value="All">All</option>
@@ -275,90 +344,105 @@ export const CommandCenter: Component = () => {
                   <div class="advanced-field-group">
                     <label>Window Style</label>
                     <div style="display: flex; align-items: center; gap: 1rem; height: 100%;">
-                       <div style="display: flex; align-items: center; gap: 0.4rem;">
-                          <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} />
-                          <span style="font-size: 0.75rem;">Frameless</span>
-                       </div>
-                       <div style="display: flex; align-items: center; gap: 0.4rem;">
-                          <input type="checkbox" checked={maximize()} onChange={(e) => setMaximize(e.currentTarget.checked)} />
-                          <span style="font-size: 0.75rem;">Maximize</span>
-                       </div>
+                      <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} />
+                        <span style="font-size: 0.75rem;">Frameless</span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <input type="checkbox" checked={maximize()} onChange={(e) => setMaximize(e.currentTarget.checked)} />
+                        <span style="font-size: 0.75rem;">Maximize</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                   <div class="advanced-field-group">
-                      <label>Width</label>
-                      <input type="number" class="input-field" value={width()} onInput={(e) => setWidth(parseInt(e.currentTarget.value))} />
-                   </div>
-                   <div class="advanced-field-group">
-                      <label>Height</label>
-                      <input type="number" class="input-field" value={height()} onInput={(e) => setHeight(parseInt(e.currentTarget.value))} />
-                   </div>
+                  <div class="advanced-field-group">
+                    <label>Width</label>
+                    <input type="number" class="input-field" value={width()} onInput={(e) => setWidth(parseInt(e.currentTarget.value))} />
+                  </div>
+                  <div class="advanced-field-group">
+                    <label>Height</label>
+                    <input type="number" class="input-field" value={height()} onInput={(e) => setHeight(parseInt(e.currentTarget.value))} />
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                  <div class="advanced-field-group">
+                    <label>Target OS</label>
+                    <div class="pill-group">
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('windows') }} onClick={() => toggleOs('windows')}>Windows</button>
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('mac') }} onClick={() => toggleOs('mac')}>macOS</button>
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('linux') }} onClick={() => toggleOs('linux')}>Linux</button>
+                    </div>
+                  </div>
+                  <div class="advanced-field-group">
+                    <label>Format</label>
+                    <div class="pill-group">
+                      <For each={availableFormats()}>
+                        {(fmt) => (
+                          <button type="button" class="pill-btn" classList={{ active: targetFormat().includes(fmt.val) }} onClick={() => toggleFormat(fmt.val)}>
+                            {fmt.label}
+                          </button>
+                        )}
+                      </For>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Show>
 
             <Show when={!showAdvanced() && isUrl() && (showPreview() || isFetchingInfo())}>
               <div class="app-window-preview fade-in">
-                <div class="app-window-header">
-                  <div class="window-controls">
-                    <div class="control close" />
-                    <div class="control minimize" />
-                    <div class="control maximize" />
-                  </div>
-                  <div class="window-title">
+                <div class="app-window-header" classList={{ "windows-header": headerOsStyle() !== "mac" }}>
+                  <Show when={headerOsStyle() === "mac"}>
+                    <div class="window-controls mac">
+                      <div class="control close" />
+                      <div class="control minimize" />
+                      <div class="control maximize" />
+                    </div>
+                  </Show>
+                  <div class="window-title" style={headerOsStyle() !== "mac" ? "margin-right: auto;" : ""}>
                     <Show when={getEffectiveIcon()} fallback={<div class="wapp-icon" style="width: 14px; height: 14px; font-size: 0.5rem; border-radius: 2px;">{name().charAt(0) || "W"}</div>}>
                       <img src={getEffectiveIcon()} class="preview-favicon" style="width: 14px; height: 14px;" />
                     </Show>
                     <span>{name() || "New Wapp"}</span>
                   </div>
-                  <div style="margin-left: auto;">
-                     <button class="btn-icon ghost" title="Settings" onClick={() => setShowAdvanced(true)}>
-                        <Settings size={14} />
-                     </button>
+                  <div style="margin-left: auto; display: flex; align-items: stretch; height: 100%;">
+                    <Show when={headerOsStyle() !== "mac"}>
+                      <div class="window-controls windows">
+                        <div class="win-control win-minimize"><Minus size={14} /></div>
+                        <div class="win-control win-maximize"><Square size={10} /></div>
+                        <div class="win-control win-close"><X size={14} /></div>
+                      </div>
+                    </Show>
                   </div>
                 </div>
-                
-                <div 
-                  ref={previewPlaceholder} 
-                  class="interactive-viewport" 
-                  style="background: #000; height: 320px;"
-                />
 
-                <div class="preview-status-bar">
-                   <div style="display: flex; align-items: center; gap: 0.5rem;">
-                      <Show when={isFetchingInfo()}>
-                         <Loader2 size={10} class="loading-spinner" />
-                         <span>Syncing live data...</span>
-                      </Show>
-                      <Show when={!isFetchingInfo()}>
-                         <div class="status-dot active" style="width: 4px; height: 4px;" />
-                         <span>Ready to build</span>
-                      </Show>
-                   </div>
-                   <div style="margin-left: auto; color: #52525b;">{url()}</div>
-                </div>
+                <div
+                  ref={previewPlaceholder}
+                  class="interactive-viewport"
+                  style="background: #000;"
+                />
               </div>
             </Show>
 
             <Show when={!showAdvanced() && filteredExistingWapps().length > 0}>
-               <div class="search-results fade-in">
-                  <div style="padding: 0.5rem 1rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #52525b; border-bottom: 1px solid rgba(255,255,255,0.03);">Existing Applications</div>
-                  <For each={filteredExistingWapps()}>
-                    {(wapp) => (
-                      <div class="search-item" onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}>
-                        <div class="wapp-icon" style="width: 24px; height: 24px; font-size: 0.7rem;">{wapp.name.charAt(0)}</div>
-                        <div class="search-item-info">
-                          <span class="search-item-name">{wapp.name}</span>
-                          <span class="search-item-url">{wapp.url}</span>
-                        </div>
-                        <div style="margin-left: auto;"><Play size={12} style="color: #52525b" /></div>
+              <div class="search-results fade-in">
+                <div style="padding: 0.5rem 1rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #52525b; border-bottom: 1px solid rgba(255,255,255,0.03);">Existing Applications</div>
+                <For each={filteredExistingWapps()}>
+                  {(wapp) => (
+                    <div class="search-item" onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}>
+                      <div class="wapp-icon" style="width: 24px; height: 24px; font-size: 0.7rem;">{wapp.name.charAt(0)}</div>
+                      <div class="search-item-info">
+                        <span class="search-item-name">{wapp.name}</span>
+                        <span class="search-item-url">{wapp.url}</span>
                       </div>
-                    )}
-                  </For>
-               </div>
+                      <div style="margin-left: auto;"><Play size={12} style="color: #52525b" /></div>
+                    </div>
+                  )}
+                </For>
+              </div>
             </Show>
           </div>
         </div>
