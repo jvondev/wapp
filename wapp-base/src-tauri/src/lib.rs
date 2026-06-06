@@ -55,7 +55,6 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(move |app| {
-            // Parse URL — fall back to about:blank on bad input
             let parsed_url: url::Url = url_str
                 .parse()
                 .unwrap_or_else(|_| "about:blank".parse().unwrap());
@@ -67,20 +66,13 @@ pub fn run() {
             )
             .title(&title)
             .inner_size(width, height)
-            .decorations(!hide_title_bar)
-            .visible(false); // Show only after webview is ready — prevents white flash
+            .decorations(!hide_title_bar);
 
             if maximize {
                 builder = builder.maximized(true);
             }
 
-            let window = builder.build()?;
-
-            // Show window only when DOM is loaded — 0ms white flash
-            window.on_page_load(move |win, _payload| {
-                let _ = win.show();
-            });
-
+            builder.build()?;
             Ok(())
         })
         .run(tauri::generate_context!())

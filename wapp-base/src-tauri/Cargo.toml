@@ -3,10 +3,9 @@ name = "wapp-base"
 version = "0.1.0"
 edition = "2021"
 
-# Pure binary — no lib crate types needed (avoids OUT_DIR issue with generate_context!)
-[[bin]]
-name = "wapp-base"
-path = "src/main.rs"
+[lib]
+name = "wapp_base_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
