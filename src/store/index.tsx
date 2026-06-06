@@ -22,6 +22,7 @@ interface AppState {
   filterCategory: string;
   showAddModal: boolean;
   notifications: Notification[];
+  editingWapp: WappConfig | null;
 }
 
 const STORAGE_KEY = "wapp_prefs";
@@ -37,6 +38,7 @@ const initialState: AppState = {
   filterCategory: localStorage.getItem(`${STORAGE_KEY}_cat`) || "All",
   showAddModal: false,
   notifications: [],
+  editingWapp: null,
 };
 
 function createAppStore() {
@@ -53,6 +55,7 @@ function createAppStore() {
       localStorage.setItem(`${STORAGE_KEY}_cat`, cat);
     },
     setShowAddModal: (show: boolean) => setState("showAddModal", show),
+    setEditingWapp: (wapp: WappConfig | null) => setState("editingWapp", wapp),
     
     addNotification: (message: string, type: "success" | "error" | "info" = "info") => {
       const id = Math.random().toString(36).substring(7);
@@ -127,6 +130,23 @@ function createAppStore() {
           b.state = "error";
         }));
         actions.addNotification(`Build failed: ${err}`, "error");
+      }
+    editWapp: async (wappId: string, data: any, icon: string | null) => {
+      try {
+        await tauriService.editWapp({
+          id: wappId,
+          name: data.name,
+          url: data.url,
+          icon: icon,
+          width: data.width,
+          height: data.height,
+          hideTitleBar: data.hideTitle,
+          category: data.category,
+        });
+        actions.addNotification(`Saved ${data.name}`, "success");
+        await actions.loadWapps();
+      } catch (err) {
+        actions.addNotification(`Failed to save: ${err}`, "error");
       }
     },
 

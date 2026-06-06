@@ -1,6 +1,6 @@
 {
   "name": "@jvondev/wapp-base",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pre-compiled base engines for Wapp instant app generation",
   "main": "index.js",
   "scripts": {

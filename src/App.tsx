@@ -11,6 +11,7 @@ import { Sidebar } from "./components/Sidebar";
 import { WappGrid } from "./components/WappGrid";
 import { SettingsView } from "./components/SettingsView";
 import { CommandCenter } from "./components/CommandCenter";
+import { EditWappModal } from "./components/EditWappModal";
 import { Notifications } from "./components/Notifications";
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
       </main>
 
       <CommandCenter />
+      <EditWappModal />
       <Notifications />
     </>
   );

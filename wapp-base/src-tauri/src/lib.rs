@@ -6,6 +6,7 @@ struct WappRuntimeConfig {
     url: String,
     #[serde(default = "default_name")]
     name: String,
+    icon: Option<String>,
     #[serde(default = "default_width")]
     width: f64,
     #[serde(default = "default_height")]
@@ -36,11 +37,26 @@ fn load_config() -> WappRuntimeConfig {
     serde_json::from_str(&raw).unwrap_or_else(|_| WappRuntimeConfig {
         url: "about:blank".to_string(),
         name: "App".to_string(),
+        icon: None,
         width: 1200.0,
         height: 780.0,
         hide_title_bar: false,
         maximize: false,
     })
+}
+
+fn decode_base64_icon(data_url: &str) -> Option<tauri::image::Image<'static>> {
+    let parts: Vec<&str> = data_url.split(',').collect();
+    if parts.len() != 2 { return None; }
+    let base64_data = parts[1];
+    
+    use base64::{Engine as _, engine::general_purpose};
+    if let Ok(bytes) = general_purpose::STANDARD.decode(base64_data) {
+        if let Ok(img) = tauri::image::Image::from_bytes(&bytes) {
+            return Some(img.to_owned());
+        }
+    }
+    None
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -52,6 +68,7 @@ pub fn run() {
     let height = config.height;
     let hide_title_bar = config.hide_title_bar;
     let maximize = config.maximize;
+    let icon = config.icon.clone();
 
     tauri::Builder::default()
         .setup(move |app| {
@@ -70,6 +87,12 @@ pub fn run() {
 
             if maximize {
                 builder = builder.maximized(true);
+            }
+            
+            if let Some(icon_str) = &icon {
+                if let Some(img) = decode_base64_icon(icon_str) {
+                    builder = builder.icon(img);
+                }
             }
 
             builder.build()?;
