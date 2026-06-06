@@ -7,6 +7,11 @@ name: Release Base
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'npm/wapp-base/package.json'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
