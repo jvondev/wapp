@@ -1,7 +1,6 @@
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::path::Path;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader};
 use tauri::{AppHandle, Emitter, Manager};
 use crate::models::{WappConfig, BuildProgress};
 use crate::utils::{get_workspace_dir, get_config_file_path};
@@ -264,7 +263,7 @@ pub fn edit_wapp(
         let _ = fs::write(&config_path, serde_json::to_string_pretty(&runtime_config).unwrap());
         
         current_wapps[pos] = wapp;
-        save_wapps(app_handle, current_wapps);
+        let _ = save_wapps(app_handle, current_wapps);
         Ok(())
     } else {
         Err("Wapp not found".into())

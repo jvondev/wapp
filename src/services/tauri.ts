@@ -2,10 +2,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { WappConfig, DependencyStatus, SiteInfo } from "../types";
 
 export const tauriService = {
-  checkDependencies: () => invoke<DependencyStatus>("check_dependencies"),
-  
-  installDependencies: () => invoke<void>("install_dependencies"),
-  
   loadWapps: () => invoke<WappConfig[]>("load_wapps"),
   
   saveWapps: (wapps: WappConfig[]) => invoke<void>("save_wapps", { wapps }),
@@ -30,9 +26,9 @@ export const tauriService = {
     icon: string | null;
     width: number;
     height: number;
-    hide_title_bar: boolean;
+    hideTitleBar: boolean;
     category: string;
-    created_at: string;
+    createdAt: string;
     maximize: boolean;
   }) => invoke<void>("build_wapp", args),
   

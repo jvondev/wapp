@@ -1,72 +1,36 @@
-import { Component, For, Show } from "solid-js";
-import { CheckCircle2, Loader2 } from "lucide-solid";
+import { Component } from "solid-js";
 import { useAppStore } from "../store";
+import { tauriService } from "../services/tauri";
 
 export const SettingsView: Component = () => {
-  const [state, actions] = useAppStore();
+  const [state] = useAppStore();
 
   return (
     <div class="settings-container">
       <div class="settings-card">
-        <h3>Environment status</h3>
-        <p>We need Node.js and Rust to package your applications. If missing, use the auto-setup below.</p>
-        
-        <div class="dep-list">
-          <div class="dep-item">
-            <div class="dep-info">
-              <span class="dep-title">Node.js Runtime</span>
-              <span class="dep-desc">Required for packaging scripts</span>
-            </div>
-            <div class="dep-status">
-              <Show when={state.depStatus?.node_installed} fallback={<span class="dep-badge missing">Missing</span>}>
-                <span class="dep-badge ok">{state.depStatus?.node_version}</span>
-                <CheckCircle2 size={14} color="#10b981" />
-              </Show>
-            </div>
-          </div>
-          
-          <div class="dep-item">
-            <div class="dep-info">
-              <span class="dep-title">Rust Compiler</span>
-              <span class="dep-desc">Required for native compilation</span>
-            </div>
-            <div class="dep-status">
-              <Show when={state.depStatus?.rust_installed} fallback={<span class="dep-badge missing">Missing</span>}>
-                <span class="dep-badge ok">Installed</span>
-                <CheckCircle2 size={14} color="#10b981" />
-              </Show>
-            </div>
-          </div>
-        </div>
+        <h3>Workspace</h3>
+        <p>Your generated apps are stored in the Wapp workspace folder on your system.</p>
+        <button
+          class="btn-command"
+          style="margin-top: 1rem; font-size: 0.85rem; padding: 0.6rem 1.2rem; width: auto;"
+          onClick={() => tauriService.openWorkspaceFolder()}
+        >
+          Open Workspace Folder
+        </button>
       </div>
 
-      <Show when={!state.depStatus?.node_installed || !state.depStatus?.rust_installed}>
-        <div class="settings-card" style="border-color: rgba(59, 130, 246, 0.3); background-color: rgba(59, 130, 246, 0.02);">
-          <h3>Automatic Setup</h3>
-          <p>Click below to download and install all missing dependencies automatically.</p>
-          
-          <button 
-            class="btn-primary" 
-            style="margin-top: 1rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-            onClick={() => actions.installDeps()}
-            disabled={state.installState === "running"}
-          >
-            {state.installState === "running" ? <Loader2 size={16} class="loading-spinner" /> : "Install Dependencies"}
-          </button>
-
-          <Show when={state.installState !== "idle"}>
-            <div style="margin-top: 1rem; background: #000; border: 1px solid #333; border-radius: 4px; padding: 0.75rem; max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.7rem;">
-              <For each={state.installLogs}>
-                {(log) => <div style="margin-bottom: 2px;">{log}</div>}
-              </For>
-            </div>
-          </Show>
-        </div>
-      </Show>
+      <div class="settings-card">
+        <h3>Library</h3>
+        <p>{state.wapps.length} application{state.wapps.length !== 1 ? "s" : ""} in your library.</p>
+      </div>
 
       <div class="settings-card">
-        <h3>About wapp</h3>
-        <p>v0.1.0 Alpha — Built with Tauri, Pake, and SolidJS.</p>
+        <h3>About Wapp</h3>
+        <p style="color: #71717a; font-size: 0.85rem; line-height: 1.6;">
+          v0.1.0 — Built with Tauri v2 and SolidJS.<br />
+          Engine: <code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">@jvondev/wapp-base</code><br />
+          License: Apache-2.0
+        </p>
       </div>
     </div>
   );

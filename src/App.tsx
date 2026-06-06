@@ -17,9 +17,8 @@ import { Notifications } from "./components/Notifications";
 function App() {
   const [state, actions] = useAppStore();
 
-  onMount(async () => {
-    await actions.checkDeps();
-    await actions.loadWapps();
+  onMount(() => {
+    actions.loadWapps();
   });
 
   return (

@@ -35,26 +35,6 @@ export const Sidebar: Component = () => {
           Setup Guide
         </button>
       </nav>
-
-      <div class="sidebar-footer">
-        <div class="status-badge" onClick={() => actions.checkDeps()} style="cursor: pointer;">
-          <div 
-            class="status-dot" 
-            classList={{ 
-              active: !!state.depStatus?.node_installed && !!state.depStatus?.rust_installed, 
-              inactive: !state.depStatus?.node_installed || !state.depStatus?.rust_installed 
-            }} 
-          />
-          <span>
-            {state.isCheckingDeps 
-              ? "Checking..." 
-              : state.depStatus?.node_installed && state.depStatus?.rust_installed 
-                ? "System Ready" 
-                : "Setup Required"
-            }
-          </span>
-        </div>
-      </div>
     </aside>
   );
 };

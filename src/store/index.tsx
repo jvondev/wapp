@@ -1,6 +1,6 @@
 import { createStore, produce } from "solid-js/store";
 import { createContext, useContext, JSX, onMount, onCleanup } from "solid-js";
-import { WappConfig, DependencyStatus, ActiveBuild, BuildProgressEvent, InstallProgressEvent } from "../types";
+import { WappConfig, ActiveBuild, BuildProgressEvent } from "../types";
 import { tauriService } from "../services/tauri";
 import { listen } from "@tauri-apps/api/event";
 
@@ -14,10 +14,6 @@ export interface Notification {
 interface AppState {
   wapps: WappConfig[];
   activeBuilds: Record<string, ActiveBuild>;
-  depStatus: DependencyStatus | null;
-  isCheckingDeps: boolean;
-  installLogs: string[];
-  installState: "idle" | "running" | "done" | "error";
   activeTab: "all" | "settings";
   filterCategory: string;
   showAddModal: boolean;
@@ -30,10 +26,6 @@ const STORAGE_KEY = "wapp_prefs";
 const initialState: AppState = {
   wapps: [],
   activeBuilds: {},
-  depStatus: null,
-  isCheckingDeps: false,
-  installLogs: [],
-  installState: "idle",
   activeTab: (localStorage.getItem(`${STORAGE_KEY}_tab`) as any) || "all",
   filterCategory: localStorage.getItem(`${STORAGE_KEY}_cat`) || "All",
   showAddModal: false,
@@ -67,15 +59,6 @@ function createAppStore() {
       setState("notifications", prev => prev.filter(n => n.id !== id));
     },
 
-    checkDeps: async () => {
-      setState("isCheckingDeps", true);
-      try {
-        const res = await tauriService.checkDependencies();
-        setState("depStatus", res);
-      } finally {
-        setState("isCheckingDeps", false);
-      }
-    },
 
     loadWapps: async () => {
       const loaded = await tauriService.loadWapps();
@@ -119,9 +102,9 @@ function createAppStore() {
           icon: favicon || null,
           width: data.width,
           height: data.height,
-          hide_title_bar: data.hideTitle,
+          hideTitleBar: data.hideTitle,
           category: data.category,
-          created_at: new Date().toLocaleDateString(),
+          createdAt: new Date().toLocaleDateString(),
           maximize: data.maximize
         });
       } catch (err) {
@@ -148,17 +131,6 @@ function createAppStore() {
         await actions.loadWapps();
       } catch (err) {
         actions.addNotification(`Failed to save: ${err}`, "error");
-      }
-    },
-
-    installDeps: async () => {
-      if (state.installState === "running") return;
-      setState({ installLogs: ["Starting automatic setup..."], installState: "running" });
-      try {
-        await tauriService.installDependencies();
-      } catch (err) {
-        setState({ installLogs: [`Error: ${err}`, ...state.installLogs], installState: "error" });
-        actions.addNotification("Installation failed", "error");
       }
     }
   };
@@ -198,23 +170,9 @@ function createAppStore() {
       }
     });
 
-    const installUnlisten = listen<InstallProgressEvent>("install-progress", (event) => {
-      const { message, status } = event.payload;
-      setState("installLogs", prev => [message, ...prev]);
-      if (status === "done") {
-        setState("installState", "done");
-        actions.addNotification("Dependencies installed successfully", "success");
-        actions.checkDeps();
-      } else if (status === "error") {
-        setState("installState", "error");
-        actions.addNotification("Dependency installation failed", "error");
-      }
-    });
-
     onCleanup(() => {
       window.removeEventListener("keydown", handleKeyDown);
       buildUnlisten.then(f => f());
-      installUnlisten.then(f => f());
     });
   });
 
