@@ -1,5 +1,5 @@
 import { Component, Show, createSignal, For, onMount, onCleanup, createEffect } from "solid-js";
-import { Globe, Plus, Settings, X, Loader2, Play, Minus, Square } from "lucide-solid";
+import { Globe, Plus, Settings, X, Play, Minus, Square } from "lucide-solid";
 import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
 
@@ -209,9 +209,10 @@ export const CommandCenter: Component = () => {
   const handleSubmit = (e: Event) => {
     e.preventDefault();
     if (!isUrl()) return;
+    const normalizedUrl = url().startsWith("http") ? url() : `https://${url()}`;
     actions.startBuild({
       name: name(),
-      url: url(),
+      url: normalizedUrl,
       category: category(),
       width: width(),
       height: height(),
@@ -258,7 +259,7 @@ export const CommandCenter: Component = () => {
             <form onSubmit={handleSubmit} class="command-bar">
               <Globe size={24} style="color: #52525b" />
               <input
-                autoFocus
+                autofocus
                 type="text"
                 class="command-input"
                 placeholder="Paste URL or search apps..."

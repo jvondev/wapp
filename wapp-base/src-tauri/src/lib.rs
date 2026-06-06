@@ -72,7 +72,12 @@ pub fn run() {
 
     tauri::Builder::default()
         .setup(move |app| {
-            let parsed_url: url::Url = url_str
+            let normalized = if url_str.contains("://") {
+                url_str.clone()
+            } else {
+                format!("https://{}", url_str)
+            };
+            let parsed_url: url::Url = normalized
                 .parse()
                 .unwrap_or_else(|_| "about:blank".parse().unwrap());
 
