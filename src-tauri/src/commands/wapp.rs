@@ -71,7 +71,7 @@ pub fn build_wapp(
 
         // 2. Find bundled base binary
         let resource_dir = app_handle_clone.path().resource_dir().unwrap_or_default();
-        let base_exe_name = format!("pake-base{}", exe_ext);
+        let base_exe_name = format!("wapp-base{}", exe_ext);
         let base_exe_path = resource_dir.join("base-bin").join(&base_exe_name);
 
         let final_exe_name = format!("{}{}", name_clone, exe_ext);
