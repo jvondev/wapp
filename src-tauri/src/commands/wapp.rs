@@ -65,42 +65,48 @@ pub fn build_wapp(
         let app_folder = workspace_dir.join(&safe_name);
         let _ = fs::create_dir_all(&app_folder);
 
-        let mut exe_ext = "";
-        #[cfg(target_os = "windows")] { exe_ext = ".exe"; }
-        #[cfg(target_os = "macos")] { exe_ext = ".app"; }
-
-        // 2. Find bundled base binary
         let resource_dir = app_handle_clone.path().resource_dir().unwrap_or_default();
-        let base_exe_name = format!("wapp-base{}", exe_ext);
-        let base_exe_path = resource_dir.join("base-bin").join(&base_exe_name);
+        let base_exe_name = if cfg!(target_os = "windows") { "wapp-base.exe" } else { "wapp-base" };
+        let base_exe_path = resource_dir.join("base-bin").join(base_exe_name);
 
-        let final_exe_name = format!("{}{}", name_clone, exe_ext);
-        let final_exe_path = app_folder.join(&final_exe_name);
+        let final_exe_path: std::path::PathBuf;
+        let config_path: std::path::PathBuf;
 
-        // 3. Instant Copy
-        if !base_exe_path.exists() {
-            // For Dev Mode: If CI hasn't run yet to bundle base, simulate it.
-            let _ = fs::write(&final_exe_path, "DUMMY EXE CONTENT (Run CI to get real binary)");
-        } else {
-             #[cfg(target_os = "macos")]
-             {
-                 let _ = Command::new("cp").arg("-r").arg(&base_exe_path).arg(&final_exe_path).status();
-             }
-             #[cfg(not(target_os = "macos"))]
-             {
-                 let _ = fs::copy(&base_exe_path, &final_exe_path);
-             }
+        #[cfg(target_os = "macos")]
+        {
+            let final_exe_name = format!("{}.app", name_clone);
+            final_exe_path = app_folder.join(&final_exe_name);
+            let macos_dir = final_exe_path.join("Contents").join("MacOS");
+            let _ = fs::create_dir_all(&macos_dir);
+            
+            let dest_exe = macos_dir.join(&name_clone);
+            if !base_exe_path.exists() {
+                let _ = fs::write(&dest_exe, "DUMMY EXE");
+            } else {
+                let _ = fs::copy(&base_exe_path, &dest_exe);
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(&dest_exe, fs::Permissions::from_mode(0o755));
+            }
+            config_path = macos_dir.join("wapp.config.json");
         }
 
-        // 4. Write JSON config payload
-        let config_path = if cfg!(target_os = "macos") {
-             final_exe_path.join("Contents").join("MacOS").join("wapp.config.json")
-        } else {
-             app_folder.join("wapp.config.json")
-        };
-
-        if let Some(p) = config_path.parent() {
-            let _ = fs::create_dir_all(p);
+        #[cfg(not(target_os = "macos"))]
+        {
+            let exe_ext = if cfg!(target_os = "windows") { ".exe" } else { "" };
+            let final_exe_name = format!("{}{}", name_clone, exe_ext);
+            final_exe_path = app_folder.join(&final_exe_name);
+            
+            if !base_exe_path.exists() {
+                let _ = fs::write(&final_exe_path, "DUMMY EXE");
+            } else {
+                let _ = fs::copy(&base_exe_path, &final_exe_path);
+                #[cfg(target_family = "unix")]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let _ = fs::set_permissions(&final_exe_path, fs::Permissions::from_mode(0o755));
+                }
+            }
+            config_path = app_folder.join("wapp.config.json");
         }
 
         let runtime_config = serde_json::json!({
@@ -189,23 +195,78 @@ pub fn open_workspace_folder(app_handle: AppHandle) -> Result<(), String> {
 pub fn delete_wapp(app_handle: AppHandle, id: String) -> Result<(), String> {
     let mut current_wapps = load_wapps(app_handle.clone());
     
-    // Find app and its path
     if let Some(pos) = current_wapps.iter().position(|w| w.id == id) {
         let wapp = &current_wapps[pos];
         let path = Path::new(&wapp.path);
         
-        // The path points to the executable. We need to delete its parent directory
-        // because the parent directory is the specific app folder we created.
-        if let Some(parent) = path.parent() {
-            // Delete the physical files
-            let _ = fs::remove_dir_all(parent);
+        #[cfg(target_os = "macos")]
+        {
+            // Path is MyApp.app/Contents/MacOS/wapp-base (from config logic) or just MyApp.app
+            // If the path ends in .app, we delete it directly. Otherwise, we delete the .app folder by going up 3 levels.
+            // But wait, in the generation code, `wapp.path` is `MyApp.app`. 
+            // So we just delete `wapp.path`.
+            let _ = fs::remove_dir_all(path);
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            if let Some(parent) = path.parent() {
+                let _ = fs::remove_dir_all(parent);
+            }
         }
         
-        // Remove from config
         current_wapps.remove(pos);
         let _ = save_wapps(app_handle.clone(), current_wapps);
         Ok(())
     } else {
         Err("App not found".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn edit_wapp(
+    app_handle: tauri::AppHandle,
+    id: String,
+    name: String,
+    url: String,
+    icon: Option<String>,
+    width: u32,
+    height: u32,
+    hide_title_bar: bool,
+    category: String,
+) -> Result<(), String> {
+    let mut current_wapps = load_wapps(app_handle.clone());
+    
+    if let Some(pos) = current_wapps.iter().position(|w| w.id == id) {
+        let mut wapp = current_wapps[pos].clone();
+        wapp.name = name.clone();
+        wapp.url = url.clone();
+        wapp.icon = icon.clone();
+        wapp.width = width;
+        wapp.height = height;
+        wapp.hide_title_bar = hide_title_bar;
+        wapp.category = category.clone();
+        
+        let config_path = if cfg!(target_os = "macos") {
+            std::path::PathBuf::from(&wapp.path).join("Contents").join("MacOS").join("wapp.config.json")
+        } else {
+            std::path::PathBuf::from(&wapp.path).parent().unwrap().join("wapp.config.json")
+        };
+        
+        let runtime_config = serde_json::json!({
+             "url": wapp.url,
+             "name": wapp.name,
+             "width": wapp.width,
+             "height": wapp.height,
+             "hide_title_bar": wapp.hide_title_bar,
+             "maximize": false
+        });
+        
+        let _ = fs::write(&config_path, serde_json::to_string_pretty(&runtime_config).unwrap());
+        
+        current_wapps[pos] = wapp;
+        save_wapps(app_handle, current_wapps);
+        Ok(())
+    } else {
+        Err("Wapp not found".into())
     }
 }

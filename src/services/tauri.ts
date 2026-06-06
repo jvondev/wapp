@@ -12,6 +12,17 @@ export const tauriService = {
   
   deleteWapp: (id: string) => invoke<void>("delete_wapp", { id }),
   
+  editWapp: (args: {
+    id: string;
+    name: string;
+    url: string;
+    icon: string | null;
+    width: number;
+    height: number;
+    hideTitleBar: boolean;
+    category: string;
+  }) => invoke<void>("edit_wapp", args),
+  
   buildWapp: (args: {
     id: string;
     name: string;

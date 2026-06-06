@@ -25,7 +25,8 @@ pub fn run() {
             preview::open_preview,
             preview::update_preview_bounds,
             preview::close_preview,
-            wapp::delete_wapp
+            wapp::delete_wapp,
+            wapp::edit_wapp
         ])
         .setup(|app| {
             let quit_i = MenuItem::with_id(app, "quit", "Quit wapp", true, None::<&str>)?;
