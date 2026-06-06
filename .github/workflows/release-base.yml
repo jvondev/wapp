@@ -1,13 +1,11 @@
 name: Release Base
 
-# Run ONLY when wapp-base Rust code changes and a version tag is pushed.
+# Run when wapp-base Rust code changes.
 # Compiles the 3 OS binaries and publishes @jvondev/wapp-base to NPM.
-# Trigger: git tag v1.x.x && git push origin v1.x.x
+# To release: bump version in npm/wapp-base/package.json, commit, then
+# go to GitHub Actions -> Release Base -> Run workflow.
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
 
 env:
@@ -122,12 +120,6 @@ jobs:
         with:
           name: wapp-base-linux
           path: npm/wapp-base/bin
-
-      - name: Set version from tag
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          npm version $VERSION --no-git-tag-version
-        working-directory: npm/wapp-base
 
       - name: Publish @jvondev/wapp-base
         run: npm publish --access public
