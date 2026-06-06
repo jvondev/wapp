@@ -5,9 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "vite",
-    "predev": "node scripts/fetch-base.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/fetch-base.mjs",
     "build": "vite build",
     "serve": "vite preview",
     "tauri": "tauri"
