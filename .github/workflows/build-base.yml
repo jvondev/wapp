@@ -176,3 +176,45 @@ jobs:
           name: wapp-installer-${{ matrix.os }}
           path: ${{ matrix.installer-paths }}
           retention-days: 30
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # STEP 3: Publish to NPM
+  # Gathers all 3 compiled base binaries and publishes @jvondev/wapp-base
+  # ─────────────────────────────────────────────────────────────────────────────
+  publish-npm:
+    name: Publish Base to NPM
+    needs: build-base
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download Windows Base
+        uses: actions/download-artifact@v4
+        with:
+          name: wapp-base-windows
+          path: npm/wapp-base/bin
+
+      - name: Download Mac Base
+        uses: actions/download-artifact@v4
+        with:
+          name: wapp-base-macos
+          path: npm/wapp-base/bin
+
+      - name: Download Linux Base
+        uses: actions/download-artifact@v4
+        with:
+          name: wapp-base-ubuntu
+          path: npm/wapp-base/bin
+
+      - name: Publish @jvondev/wapp-base
+        run: npm publish --access public
+        working-directory: npm/wapp-base
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

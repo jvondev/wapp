@@ -1,0 +1,23 @@
+{
+  "name": "@jvondev/wapp-base",
+  "version": "1.0.0",
+  "description": "Pre-compiled base engines for Wapp instant app generation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jvondev/wapp.git"
+  },
+  "keywords": [
+    "wapp",
+    "tauri",
+    "desktop"
+  ],
+  "author": "jvon",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
