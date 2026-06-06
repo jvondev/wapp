@@ -2,12 +2,8 @@ name: Build wapp-base + Wapp Installers
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'wapp-base/**'
-      - 'src/**'
-      - 'src-tauri/**'
-      - '.github/workflows/build-base.yml'
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 env:
