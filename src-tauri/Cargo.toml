@@ -1,8 +1,9 @@
 [package]
-name = "tauri-app"
+name = "wapp"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Convert any website into a desktop app instantly"
+authors = ["jvon <jvondev@github.com>"]
+license = "Apache-2.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
