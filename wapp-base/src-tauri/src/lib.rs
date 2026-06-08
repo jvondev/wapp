@@ -96,7 +96,10 @@ pub fn run() {
             
             if let Some(icon_str) = &icon {
                 if let Some(img) = decode_base64_icon(icon_str) {
-                    builder = builder.icon(img).unwrap();
+                    #[cfg(target_os = "macos")]
+                    let _ = app.handle().set_icon(img.clone());
+                    
+                    builder = builder.icon(img).expect("failed to set icon");
                 }
             }
 

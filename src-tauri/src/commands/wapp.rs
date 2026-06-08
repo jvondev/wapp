@@ -66,7 +66,7 @@ pub fn build_wapp(
 
         let resource_dir = app_handle_clone.path().resource_dir().unwrap_or_default();
         let base_exe_name = if cfg!(target_os = "windows") { "wapp-base.exe" } else { "wapp-base" };
-        let base_exe_path = resource_dir.join("base-bin").join(base_exe_name);
+        let base_exe_path = resource_dir.join("bin").join(base_exe_name);
 
         let final_exe_path: std::path::PathBuf;
         let config_path: std::path::PathBuf;
@@ -111,6 +111,7 @@ pub fn build_wapp(
         let runtime_config = serde_json::json!({
              "url": url_clone,
              "name": name_clone,
+             "icon": icon.clone(),
              "width": width,
              "height": height,
              "hide_title_bar": hide_title_bar,
@@ -124,9 +125,9 @@ pub fn build_wapp(
         let mut current_wapps = load_wapps(app_handle_clone.clone());
 
         if let Some(pos) = current_wapps.iter().position(|w| w.id == id_str) {
-            current_wapps[pos] = WappConfig { id: id_str.clone(), name: name_clone.clone(), url: url_clone.clone(), icon: icon.clone(), width, height, hide_title_bar, category: category_clone.clone(), created_at: created_at.clone(), path: path_str.clone() };
+            current_wapps[pos] = WappConfig { id: id_str.clone(), name: name_clone.clone(), url: url_clone.clone(), icon: icon.clone(), width, height, hide_title_bar, maximize, category: category_clone.clone(), created_at: created_at.clone(), path: path_str.clone() };
         } else {
-            current_wapps.push(WappConfig { id: id_str.clone(), name: name_clone.clone(), url: url_clone.clone(), icon: icon.clone(), width, height, hide_title_bar, category: category_clone.clone(), created_at: created_at.clone(), path: path_str.clone() });
+            current_wapps.push(WappConfig { id: id_str.clone(), name: name_clone.clone(), url: url_clone.clone(), icon: icon.clone(), width, height, hide_title_bar, maximize, category: category_clone.clone(), created_at: created_at.clone(), path: path_str.clone() });
         }
 
         let _ = save_wapps(app_handle_clone.clone(), current_wapps);
@@ -231,6 +232,7 @@ pub fn edit_wapp(
     width: u32,
     height: u32,
     hide_title_bar: bool,
+    maximize: bool,
     category: String,
 ) -> Result<(), String> {
     let mut current_wapps = load_wapps(app_handle.clone());
@@ -243,6 +245,7 @@ pub fn edit_wapp(
         wapp.width = width;
         wapp.height = height;
         wapp.hide_title_bar = hide_title_bar;
+        wapp.maximize = maximize;
         wapp.category = category.clone();
         
         let config_path = if cfg!(target_os = "macos") {
@@ -254,10 +257,11 @@ pub fn edit_wapp(
         let runtime_config = serde_json::json!({
              "url": wapp.url,
              "name": wapp.name,
+             "icon": wapp.icon,
              "width": wapp.width,
              "height": wapp.height,
              "hide_title_bar": wapp.hide_title_bar,
-             "maximize": false
+             "maximize": wapp.maximize
         });
         
         let _ = fs::write(&config_path, serde_json::to_string_pretty(&runtime_config).unwrap());

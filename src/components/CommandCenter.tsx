@@ -13,7 +13,7 @@ export const CommandCenter: Component = () => {
   const [category, setCategory] = createSignal("All");
   const [width, setWidth] = createSignal(1280);
   const [height, setHeight] = createSignal(800);
-  const [hideTitle, setHideTitle] = createSignal(true);
+  const [hideTitle, setHideTitle] = createSignal(false);
   const [maximize, setMaximize] = createSignal(true);
 
   const [faviconUrl, setFaviconUrl] = createSignal("");

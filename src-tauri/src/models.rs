@@ -9,6 +9,7 @@ pub struct WappConfig {
     pub width: u32,
     pub height: u32,
     pub hide_title_bar: bool,
+    pub maximize: bool,
     pub category: String,
     pub created_at: String,
     pub path: String,

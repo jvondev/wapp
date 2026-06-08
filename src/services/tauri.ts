@@ -16,6 +16,7 @@ export const tauriService = {
     width: number;
     height: number;
     hideTitleBar: boolean;
+    maximize: boolean;
     category: string;
   }) => invoke<void>("edit_wapp", args),
   

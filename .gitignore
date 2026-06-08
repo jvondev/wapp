@@ -45,3 +45,4 @@ Desktop.ini
 
 # ── NPM binaries (fetched at build time, not stored in git) ───────────────────
 npm/wapp-base/bin/
+src-tauri/bin/

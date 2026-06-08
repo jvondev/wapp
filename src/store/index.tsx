@@ -125,6 +125,7 @@ function createAppStore() {
           width: data.width,
           height: data.height,
           hideTitleBar: data.hideTitle,
+          maximize: data.maximize,
           category: data.category,
         });
         actions.addNotification(`Saved ${data.name}`, "success");

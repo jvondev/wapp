@@ -4,8 +4,9 @@
   "description": "Turn any URL into a desktop app instantly",
   "type": "module",
   "scripts": {
-    "dev": "tauri dev",
-    "build": "tauri build",
+    "dev": "node scripts/dev.js",
+    "dev:local": "node scripts/dev.js --local",
+    "build": "node scripts/dev.js --build",
     "vite": "vite"
   },
   "license": "Apache-2.0",

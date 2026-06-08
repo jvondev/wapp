@@ -10,7 +10,8 @@ export const EditWappModal: Component = () => {
   const [category, setCategory] = createSignal("Work");
   const [width, setWidth] = createSignal(1280);
   const [height, setHeight] = createSignal(800);
-  const [hideTitle, setHideTitle] = createSignal(true);
+  const [hideTitle, setHideTitle] = createSignal(false);
+  const [maximize, setMaximize] = createSignal(true);
   const [customIcon, setCustomIcon] = createSignal<string | null>(null);
 
   let fileInput: HTMLInputElement | undefined;
@@ -24,6 +25,7 @@ export const EditWappModal: Component = () => {
       setWidth(state.editingWapp.width);
       setHeight(state.editingWapp.height);
       setHideTitle(state.editingWapp.hide_title_bar);
+      setMaximize(state.editingWapp.maximize);
       setCustomIcon(state.editingWapp.icon || null);
     }
   });
@@ -50,6 +52,7 @@ export const EditWappModal: Component = () => {
       width: width(),
       height: height(),
       hideTitle: hideTitle(),
+      maximize: maximize(),
     }, customIcon());
     
     actions.setEditingWapp(null);
@@ -89,9 +92,15 @@ export const EditWappModal: Component = () => {
                 </div>
                 <div class="advanced-field-group">
                   <label>Window Style</label>
-                  <div style="display: flex; align-items: center; gap: 0.5rem; height: 100%; padding-left: 0.5rem;">
-                    <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} id="hideTitle" />
-                    <label for="hideTitle" style="margin: 0; cursor: pointer;">Frameless Window</label>
+                  <div style="display: flex; align-items: center; gap: 1rem; height: 100%; padding-left: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                      <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} id="hideTitle" />
+                      <label for="hideTitle" style="margin: 0; cursor: pointer; font-size: 0.75rem;">Frameless</label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                      <input type="checkbox" checked={maximize()} onChange={(e) => setMaximize(e.currentTarget.checked)} id="maximize" />
+                      <label for="maximize" style="margin: 0; cursor: pointer; font-size: 0.75rem;">Maximize</label>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -8,6 +8,7 @@ export interface WappConfig {
   width: number;
   height: number;
   hide_title_bar: boolean;
+  maximize: boolean;
   category: string;
   created_at: string;
   path: string;

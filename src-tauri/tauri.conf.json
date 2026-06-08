@@ -32,9 +32,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {
-      "../node_modules/@jvondev/wapp-base/bin/wapp-base": "base-bin/wapp-base",
-      "../node_modules/@jvondev/wapp-base/bin/wapp-base.exe": "base-bin/wapp-base.exe"
-    }
+    "resources": [
+      "bin/*"
+    ]
   }
 }
