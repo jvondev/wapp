@@ -112,3 +112,26 @@ if (isLocalFlag) {
     });
   }
 } else {
+  if (!fs.existsSync(npmPkgPath)) {
+    console.log('⚠️  Cloud binaries missing. Running "npm install"...');
+    spawnSync('npm', ['install'], { stdio: 'inherit', shell: true });
+  }
+  
+  if (fs.existsSync(npmPkgPath)) {
+    console.log('☁️  CLOUD mode active.');
+    // Architecture check
+    const isExeFound = npmPkgPath.endsWith('.exe');
+    if (isWindows && !isExeFound) {
+        console.error('❌ Error: Expected .exe for Windows but found ' + npmPkgPath);
+        process.exit(1);
+    } else if (!isWindows && isExeFound) {
+        console.error('❌ Error: Found .exe on non-Windows platform: ' + npmPkgPath);
+        process.exit(1);
+    }
+    fs.copyFileSync(npmPkgPath, path.join(destDir, binName));
+    startTauri();
+  } else {
+    console.error('❌ Could not find cloud binary. Try "npm run dev:local".');
+    process.exit(1);
+  }
+}

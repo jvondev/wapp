@@ -31,6 +31,7 @@ export const tauriService = {
     category: string;
     createdAt: string;
     maximize: boolean;
+    os: string[];
   }) => invoke<void>("build_wapp", args),
   
   launchWapp: (path: string) => invoke<void>("launch_wapp", { path }),

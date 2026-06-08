@@ -33,10 +33,8 @@ export const CommandCenter: Component = () => {
   };
 
   const defaultOs = safeParse("wapp_prefs_os", ["windows"]);
-  const defaultFormat = safeParse("wapp_prefs_format", ["nsis"]);
 
   const [targetOs, setTargetOs] = createSignal<string[]>(defaultOs);
-  const [targetFormat, setTargetFormat] = createSignal<string[]>(defaultFormat);
 
   const toggleOs = (os: string) => {
     let current = targetOs();
@@ -44,30 +42,6 @@ export const CommandCenter: Component = () => {
     if (next.length === 0) next = [os];
     setTargetOs(next);
     localStorage.setItem("wapp_prefs_os", JSON.stringify(next));
-
-    let formats: string[] = [];
-    if (next.includes("windows")) formats.push("nsis");
-    if (next.includes("mac")) formats.push("dmg");
-    if (next.includes("linux")) formats.push("AppImage");
-    setTargetFormat(formats);
-    localStorage.setItem("wapp_prefs_format", JSON.stringify(formats));
-  };
-
-  const toggleFormat = (fmt: string) => {
-    let current = targetFormat();
-    let next = current.includes(fmt) ? current.filter(f => f !== fmt) : [...current, fmt];
-    if (next.length === 0) next = [fmt];
-    setTargetFormat(next);
-    localStorage.setItem("wapp_prefs_format", JSON.stringify(next));
-  };
-
-  const availableFormats = () => {
-    const os = targetOs();
-    let fmts: { val: string, label: string }[] = [];
-    if (os.includes("windows")) fmts.push({ val: "nsis", label: "NSIS (.exe)" }, { val: "msi", label: "MSI (.msi)" });
-    if (os.includes("mac")) fmts.push({ val: "dmg", label: "DMG (.dmg)" }, { val: "app", label: "App Bundle (.app)" });
-    if (os.includes("linux")) fmts.push({ val: "AppImage", label: "AppImage" }, { val: "deb", label: "Debian (.deb)" });
-    return fmts;
   };
 
   const headerOsStyle = () => {
@@ -218,8 +192,7 @@ export const CommandCenter: Component = () => {
       height: height(),
       hideTitle: hideTitle(),
       maximize: maximize(),
-      os: targetOs(),
-      format: targetFormat()
+      os: targetOs()
     }, getEffectiveIcon());
 
     setUrl("");
@@ -368,25 +341,13 @@ export const CommandCenter: Component = () => {
                   </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
                   <div class="advanced-field-group">
                     <label>Target OS</label>
                     <div class="pill-group">
-                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('windows') }} onClick={() => toggleOs('windows')}>Windows</button>
-                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('mac') }} onClick={() => toggleOs('mac')}>macOS</button>
-                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('linux') }} onClick={() => toggleOs('linux')}>Linux</button>
-                    </div>
-                  </div>
-                  <div class="advanced-field-group">
-                    <label>Format</label>
-                    <div class="pill-group">
-                      <For each={availableFormats()}>
-                        {(fmt) => (
-                          <button type="button" class="pill-btn" classList={{ active: targetFormat().includes(fmt.val) }} onClick={() => toggleFormat(fmt.val)}>
-                            {fmt.label}
-                          </button>
-                        )}
-                      </For>
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('windows') }} onClick={() => toggleOs('windows')}>Windows (.exe)</button>
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('mac') }} onClick={() => toggleOs('mac')}>macOS (.app)</button>
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('linux') }} onClick={() => toggleOs('linux')}>Linux (Binary)</button>
                     </div>
                   </div>
                 </div>

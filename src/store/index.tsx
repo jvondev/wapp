@@ -105,7 +105,8 @@ function createAppStore() {
           hideTitleBar: data.hideTitle,
           category: data.category,
           createdAt: new Date().toLocaleDateString(),
-          maximize: data.maximize
+          maximize: data.maximize,
+          os: data.os || []
         });
       } catch (err) {
         setState("activeBuilds", uniqueId, produce(b => {

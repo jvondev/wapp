@@ -2,7 +2,7 @@ mod models;
 mod utils;
 mod commands;
 
-use commands::{deps, wapp, metadata, preview};
+use commands::{wapp, metadata, preview};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -14,8 +14,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            deps::check_dependencies,
-            deps::install_dependencies,
             wapp::load_wapps,
             wapp::save_wapps,
             wapp::build_wapp,

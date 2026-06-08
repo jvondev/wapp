@@ -15,15 +15,6 @@ pub struct WappConfig {
     pub path: String,
 }
 
-#[derive(Serialize, Debug)]
-pub struct DependencyStatus {
-    pub node_installed: bool,
-    pub rust_installed: bool,
-    pub pake_installed: bool,
-    pub node_version: String,
-    pub rust_version: String,
-}
-
 #[derive(Clone, Serialize, Debug)]
 pub struct BuildProgress {
     pub app_id: String,
@@ -31,11 +22,6 @@ pub struct BuildProgress {
     pub status: String, // "running", "success", "error"
 }
 
-#[derive(Clone, Serialize, Debug)]
-pub struct InstallProgress {
-    pub message: String,
-    pub status: String, // "running" | "success" | "error" | "done"
-}
 
 #[derive(Serialize, Debug)]
 pub struct SiteInfo {
