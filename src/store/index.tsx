@@ -19,6 +19,7 @@ interface AppState {
   showAddModal: boolean;
   notifications: Notification[];
   editingWapp: WappConfig | null;
+  theme: "light" | "dark";
 }
 
 const STORAGE_KEY = "wapp_prefs";
@@ -31,6 +32,7 @@ const initialState: AppState = {
   showAddModal: false,
   notifications: [],
   editingWapp: null,
+  theme: (localStorage.getItem(`${STORAGE_KEY}_theme`) as any) || "light",
 };
 
 function createAppStore() {
@@ -48,6 +50,15 @@ function createAppStore() {
     },
     setShowAddModal: (show: boolean) => setState("showAddModal", show),
     setEditingWapp: (wapp: WappConfig | null) => setState("editingWapp", wapp),
+    setTheme: (theme: "light" | "dark") => {
+      setState("theme", theme);
+      localStorage.setItem(`${STORAGE_KEY}_theme`, theme);
+      if (theme === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
+    },
     
     addNotification: (message: string, type: "success" | "error" | "info" = "info") => {
       const id = Math.random().toString(36).substring(7);
@@ -139,6 +150,13 @@ function createAppStore() {
 
   // Listeners
   onMount(() => {
+    // Apply initial theme
+    if (state.theme === "dark") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+
     // Global Keyboard Shortcut (Ctrl+K or Cmd+K)
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {

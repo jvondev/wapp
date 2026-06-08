@@ -3,10 +3,29 @@ import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
 
 export const SettingsView: Component = () => {
-  const [state] = useAppStore();
+  const [state, actions] = useAppStore();
 
   return (
     <div class="settings-container">
+      <div class="settings-card">
+        <h3>Appearance</h3>
+        <p>Choose your preferred theme for the interface.</p>
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <button 
+            class={`pill-btn ${state.theme === 'light' ? 'active' : ''}`}
+            onClick={() => actions.setTheme('light')}
+          >
+            Light
+          </button>
+          <button 
+            class={`pill-btn ${state.theme === 'dark' ? 'active' : ''}`}
+            onClick={() => actions.setTheme('dark')}
+          >
+            Dark
+          </button>
+        </div>
+      </div>
+
       <div class="settings-card">
         <h3>Workspace</h3>
         <p>Your generated apps are stored in the Wapp workspace folder on your system.</p>
