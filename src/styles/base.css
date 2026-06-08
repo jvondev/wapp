@@ -1,11 +1,11 @@
 /* Base variables, resets and global animations */
 
 :root {
-  /* Light theme - Default */
-  --background: 0 0% 100%;
+  /* Premium Light theme - Zinc/Neutral inspired */
+  --background: 240 4.8% 98%; /* Slightly cooler off-white for depth */
   --foreground: 240 10% 3.9%;
   
-  --card: 0 0% 100%;
+  --card: 0 0% 100%; /* Pure white surfaces */
   --card-foreground: 240 10% 3.9%;
   
   --popover: 0 0% 100%;
@@ -30,7 +30,7 @@
   --input: 240 5.9% 90%;
   --ring: 240 5.9% 10%;
   
-  --radius: 8px;
+  --radius: 0.5rem;
 }
 
 [data-theme="dark"] {

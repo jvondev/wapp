@@ -60,17 +60,17 @@
 
 .nav-item.active {
   background-color: hsl(var(--accent));
-  color: hsl(var(--foreground));
+  color: hsl(var(--accent-foreground));
 }
 
 .sidebar-add-btn {
   margin-bottom: 1.25rem;
   width: 100%;
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
   padding: 0.625rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   font-size: 0.825rem;
   font-weight: 600;
   display: flex;
@@ -78,7 +78,8 @@
   justify-content: center;
   gap: 0.5rem;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.2s;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .sidebar-add-btn:hover {
@@ -143,7 +144,7 @@
 .filter-btn:hover,
 .filter-btn.active {
   background-color: hsl(var(--accent));
-  color: hsl(var(--foreground));
+  color: hsl(var(--accent-foreground));
 }
 
 .filter-btn.border-btn {
@@ -160,18 +161,20 @@
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  transition: border-color 0.15s, transform 0.15s;
+  gap: 1rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   overflow: hidden;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
 }
 
 .wapp-card:hover {
-  border-color: #3f3f46;
-  transform: translateY(-1px);
+  border-color: hsl(var(--border));
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  transform: translateY(-2px);
 }
 
 .wapp-card-header {
@@ -316,7 +319,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 .command-input {
@@ -337,7 +340,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
   margin-bottom: 0.5rem;
 }
 
@@ -400,12 +403,12 @@
 .advanced-card {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
-  border-radius: 12px;
-  padding: 1.25rem;
+  border-radius: var(--radius);
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  gap: 1.25rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 
 .advanced-field-group {
@@ -423,10 +426,10 @@
 }
 
 .btn-command {
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 0.4rem 0.75rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -434,6 +437,8 @@
   display: flex;
   align-items: center;
   gap: 0.375rem;
+  transition: opacity 0.2s;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .btn-command:disabled {
@@ -465,29 +470,32 @@
 .input-field {
   background-color: hsl(var(--background));
   border: 1px solid hsl(var(--border));
-  border-radius: 5px;
+  border-radius: var(--radius);
   padding: 0.45rem 0.625rem;
   color: hsl(var(--foreground));
   font-size: 0.8rem;
   font-family: inherit;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .input-field:focus {
-  border-color: #52525b;
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 1px hsl(var(--ring));
 }
 
 .btn-primary {
-  background-color: hsl(var(--foreground));
-  color: hsl(var(--background));
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 0.5rem 1rem;
   font-size: 0.825rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: opacity 0.2s;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .btn-primary:hover {
@@ -507,7 +515,8 @@
   background-color: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  padding: 1.25rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
 }
 
 .settings-card h3 {
@@ -586,12 +595,12 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  padding: 3rem 1.5rem;
+  padding: 4rem 1.5rem;
   border: 1px dashed hsl(var(--border));
   border-radius: var(--radius);
   color: hsl(var(--muted-foreground));
   text-align: center;
-  background: hsl(var(--muted));
+  background: transparent;
 }
 
 .empty-title {
