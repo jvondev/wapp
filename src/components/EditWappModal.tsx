@@ -1,5 +1,5 @@
 import { Component, Show, createSignal, createEffect } from "solid-js";
-import { X, Save, Settings } from "lucide-solid";
+import { X, Save, Pencil } from "lucide-solid";
 import { useAppStore } from "../store";
 
 export const EditWappModal: Component = () => {
@@ -61,29 +61,45 @@ export const EditWappModal: Component = () => {
   return (
     <Show when={state.editingWapp}>
       <div class="command-center-overlay" onClick={() => actions.setEditingWapp(null)}>
-        <div class="command-center-container" style="max-width: 500px;" onClick={(e) => e.stopPropagation()}>
-          <div class="advanced-card fade-in" style="margin: 0; border: none; background: #18181b;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
-              <h3 style="font-size: 1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
-                <Settings size={18} /> Edit Wapp
+        <div class="command-center-container" style="max-width: 520px;" onClick={(e) => e.stopPropagation()}>
+          <div class="advanced-card fade-in" style="margin: 0; padding: 2rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+              <h3 style="font-size: 1.1rem; font-weight: 700; color: hsl(var(--foreground)); display: flex; align-items: center; gap: 0.75rem;">
+                <div style="background: hsl(var(--accent)); padding: 0.5rem; border-radius: 10px; color: hsl(var(--primary));"><Pencil size={20} /></div>
+                Edit Application
               </h3>
-              <button class="btn-icon" onClick={() => actions.setEditingWapp(null)}><X size={16} /></button>
+              <button class="btn-icon" style="border: none;" onClick={() => actions.setEditingWapp(null)}><X size={18} /></button>
             </div>
 
-            <form onSubmit={handleSubmit} style="display: flex; flex-direction: column; gap: 1rem;">
+            <form onSubmit={handleSubmit} style="display: flex; flex-direction: column; gap: 1.5rem;">
+              <div style="display: flex; gap: 1.5rem; align-items: center; background: hsl(var(--muted) / 0.3); padding: 1.25rem; border-radius: 16px; border: 1px solid hsl(var(--border));">
+                <div class="wapp-icon-container" style="width: 64px; height: 64px; border-radius: 16px; flex-shrink: 0; box-shadow: none; font-size: 1.5rem;">
+                  <Show when={customIcon()} fallback={name().charAt(0) || "W"}>
+                    <img src={customIcon()!} style="width: 100%; height: 100%; object-fit: contain; padding: 0.6rem;" />
+                  </Show>
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+                  <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Visual Identity</span>
+                  <button type="button" class="btn-icon" style="font-size: 0.8rem; padding: 0 1rem; background: hsl(var(--background)); width: auto; height: 32px; border-radius: 8px; font-weight: 600;" onClick={() => fileInput?.click()}>
+                    Change Icon
+                  </button>
+                  <input ref={fileInput} type="file" hidden accept="image/*" onInput={handleIconUpload} />
+                </div>
+              </div>
+
               <div class="advanced-field-group">
-                <label>App Name</label>
+                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Application Name</label>
                 <input type="text" class="input-field" value={name()} onInput={(e) => setName(e.currentTarget.value)} required />
               </div>
               
               <div class="advanced-field-group">
-                <label>URL</label>
+                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Source URL</label>
                 <input type="url" class="input-field" value={url()} onInput={(e) => setUrl(e.currentTarget.value)} required />
               </div>
 
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                 <div class="advanced-field-group">
-                  <label>Category</label>
+                  <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Category</label>
                   <select class="input-field" value={category()} onChange={(e) => setCategory(e.currentTarget.value)}>
                     <option value="All">All</option>
                     <option value="Work">Work</option>
@@ -91,55 +107,24 @@ export const EditWappModal: Component = () => {
                   </select>
                 </div>
                 <div class="advanced-field-group">
-                  <label>Window Style</label>
-                  <div style="display: flex; align-items: center; gap: 1rem; height: 100%; padding-left: 0.5rem;">
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                      <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} id="hideTitle" />
-                      <label for="hideTitle" style="margin: 0; cursor: pointer; font-size: 0.75rem;">Frameless</label>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                      <input type="checkbox" checked={maximize()} onChange={(e) => setMaximize(e.currentTarget.checked)} id="maximize" />
-                      <label for="maximize" style="margin: 0; cursor: pointer; font-size: 0.75rem;">Maximize</label>
-                    </div>
+                  <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Window Experience</label>
+                  <div style="display: flex; align-items: center; gap: 1rem; height: 100%;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; text-transform: none; letter-spacing: normal;">
+                      <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} style="accent-color: hsl(var(--primary));" />
+                      <span style="font-size: 0.8rem; font-weight: 500;">Frameless</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; text-transform: none; letter-spacing: normal;">
+                      <input type="checkbox" checked={maximize()} onChange={(e) => setMaximize(e.currentTarget.checked)} style="accent-color: hsl(var(--primary));" />
+                      <span style="font-size: 0.8rem; font-weight: 500;">Maximize</span>
+                    </label>
                   </div>
                 </div>
               </div>
 
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div class="advanced-field-group">
-                  <label>Width</label>
-                  <input type="number" class="input-field" value={width()} onInput={(e) => setWidth(parseInt(e.currentTarget.value))} />
-                </div>
-                <div class="advanced-field-group">
-                  <label>Height</label>
-                  <input type="number" class="input-field" value={height()} onInput={(e) => setHeight(parseInt(e.currentTarget.value))} />
-                </div>
-              </div>
-
-              <div class="advanced-field-group" style="margin-bottom: 1rem;">
-                <label>App Icon</label>
-                <div style="display: flex; gap: 1rem; align-items: center; background: rgba(0,0,0,0.2); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-                  <div class="wapp-icon" style="width: 40px; height: 40px; flex-shrink: 0; font-size: 1.2rem; background: #27272a;">
-                    <Show when={customIcon()} fallback={name().charAt(0) || "W"}>
-                      <img src={customIcon()!} style="width: 100%; height: 100%; object-fit: contain; border-radius: 6px;" />
-                    </Show>
-                  </div>
-                  <div style="flex: 1;">
-                    <button type="button" class="btn-icon" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; background: rgba(255,255,255,0.05); width: auto;" onClick={() => fileInput?.click()}>
-                      Upload New Icon
-                    </button>
-                    <input ref={fileInput} type="file" hidden accept="image/*" onInput={handleIconUpload} />
-                  </div>
-                  <Show when={customIcon()}>
-                    <button type="button" class="btn-icon delete" onClick={() => setCustomIcon(null)} title="Remove Icon"><X size={14} /></button>
-                  </Show>
-                </div>
-              </div>
-
-              <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
-                <button type="button" class="btn-icon" onClick={() => actions.setEditingWapp(null)} style="padding: 0.5rem 1rem; width: auto;">Cancel</button>
-                <button type="submit" class="btn-command" style="padding: 0.5rem 1.5rem; width: auto;">
-                  <Save size={16} /> Save Changes
+              <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid hsl(var(--border));">
+                <button type="button" class="btn-icon" onClick={() => actions.setEditingWapp(null)} style="padding: 0 1.25rem; width: auto; height: 42px; border-radius: 12px; font-weight: 600; border: none;">Discard</button>
+                <button type="submit" class="btn-primary" style="height: 42px; padding: 0 2rem; border-radius: 12px; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;">
+                  <Save size={18} /> Update Wapp
                 </button>
               </div>
             </form>

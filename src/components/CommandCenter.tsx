@@ -1,5 +1,5 @@
 import { Component, Show, createSignal, For, onMount, onCleanup, createEffect } from "solid-js";
-import { Globe, Plus, Settings, X, Play, Minus, Square } from "lucide-solid";
+import { Plus, Settings, X, Play, Minus, Square, Command } from "lucide-solid";
 import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
 
@@ -229,40 +229,40 @@ export const CommandCenter: Component = () => {
         <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
 
           <div style="position: relative;">
-            <form onSubmit={handleSubmit} class="command-bar">
-              <Globe size={24} style="color: hsl(var(--muted-foreground))" />
+            <form onSubmit={handleSubmit} class="command-bar" style="border: 1px solid hsl(var(--primary) / 0.1);">
+              <Command size={22} style="color: hsl(var(--primary))" />
               <input
                 autofocus
                 type="text"
                 class="command-input"
-                placeholder="Paste URL or search apps..."
+                placeholder="Enter a web URL to begin..."
                 value={url()}
                 onInput={(e) => handleUrlChange(e.currentTarget.value)}
               />
               <Show when={!isUrl()}>
-                <div class="kbd-shortcut">
+                <div class="kbd-shortcut" style="padding: 0.3rem 0.5rem; border-radius: 8px;">
                   <kbd>⌘</kbd> <kbd>K</kbd>
                 </div>
               </Show>
               <Show when={isUrl()}>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
                   <button
                     type="button"
-                    class="btn-icon ghost"
-                    style="border-color: transparent;"
+                    class="btn-icon"
+                    style="border: none; background: hsl(var(--accent)); width: 38px; height: 38px; border-radius: 10px;"
                     onClick={() => setShowAdvanced(!showAdvanced())}
                     title="Advanced Configuration"
                   >
-                    <Settings size={18} />
+                    <Settings size={20} />
                   </button>
                   <button
                     type="submit"
-                    class="btn-command"
-                    style="padding: 0.6rem 1.25rem; font-size: 0.85rem;"
+                    class="btn-primary"
+                    style="height: 38px; padding: 0 1.25rem; border-radius: 10px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;"
                     disabled={!url() || !name()}
                   >
-                    <Plus size={16} />
-                    Create Wapp
+                    <Plus size={18} />
+                    Create
                   </button>
                 </div>
               </Show>
@@ -272,14 +272,14 @@ export const CommandCenter: Component = () => {
           <div class="command-center-content transition-group">
             <Show when={showAdvanced()}>
               <div class="advanced-card fade-in">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                  <h3 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Configuration</h3>
-                  <button class="btn-icon" onClick={() => setShowAdvanced(false)}><X size={14} /></button>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                  <h3 style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--foreground)); letter-spacing: 0.05em;">Configuration</h3>
+                  <button class="btn-icon" style="border: none;" onClick={() => setShowAdvanced(false)}><X size={16} /></button>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
                   <div class="advanced-field-group">
-                    <label>Application Name</label>
+                    <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Application Name</label>
                     <input
                       type="text"
                       class="input-field"
@@ -289,27 +289,27 @@ export const CommandCenter: Component = () => {
                     />
                   </div>
                   <div class="advanced-field-group">
-                    <label>App Icon</label>
-                    <div style="display: flex; gap: 0.5rem; align-items: center;">
-                      <div class="wapp-icon" style="width: 32px; height: 32px; flex-shrink: 0;">
-                        <Show when={getEffectiveIcon()} fallback={name().charAt(0) || "W"}>
-                          <img src={getEffectiveIcon()} style="width: 100%; height: 100%; object-fit: contain; border-radius: 4px;" />
+                    <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">App Icon</label>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                      <div class="wapp-icon-container" style="width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; box-shadow: none;">
+                        <Show when={getEffectiveIcon()} fallback={<span style="font-weight: 700;">{name().charAt(0) || "W"}</span>}>
+                          <img src={getEffectiveIcon()} style="width: 100%; height: 100%; object-fit: contain; padding: 0.4rem;" />
                         </Show>
                       </div>
-                      <button class="btn-icon" style="flex: 1; height: 32px; font-size: 0.65rem;" onClick={() => fileInput?.click()}>
+                      <button class="btn-icon" style="flex: 1; height: 42px; font-size: 0.75rem; font-weight: 600; border-radius: 10px;" onClick={() => fileInput?.click()}>
                         {customIcon() ? "Change Icon" : "Upload Custom"}
                       </button>
                       <input ref={fileInput} type="file" hidden accept="image/*" onInput={handleIconUpload} />
                       <Show when={customIcon()}>
-                        <button class="btn-icon delete" onClick={() => setCustomIcon(null)}><X size={12} /></button>
+                        <button class="btn-icon" style="border-color: rgba(239, 68, 68, 0.2); color: #ef4444;" onClick={() => setCustomIcon(null)}><X size={14} /></button>
                       </Show>
                     </div>
                   </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
                   <div class="advanced-field-group">
-                    <label>Category</label>
+                    <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Category</label>
                     <select
                       class="input-field"
                       value={category()}
@@ -321,38 +321,38 @@ export const CommandCenter: Component = () => {
                     </select>
                   </div>
                   <div class="advanced-field-group">
-                    <label>Window Style</label>
-                    <div style="display: flex; align-items: center; gap: 1rem; height: 100%;">
-                      <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} />
-                        <span style="font-size: 0.75rem;">Frameless</span>
-                      </div>
-                      <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <input type="checkbox" checked={maximize()} onChange={(e) => setMaximize(e.currentTarget.checked)} />
-                        <span style="font-size: 0.75rem;">Maximize</span>
-                      </div>
+                    <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Window Style</label>
+                    <div style="display: flex; align-items: center; gap: 1.5rem; height: 100%;">
+                      <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; text-transform: none; letter-spacing: normal;">
+                        <input type="checkbox" checked={hideTitle()} onChange={(e) => setHideTitle(e.currentTarget.checked)} style="accent-color: hsl(var(--primary));" />
+                        <span style="font-size: 0.85rem; font-weight: 500; color: hsl(var(--foreground));">Frameless</span>
+                      </label>
+                      <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; text-transform: none; letter-spacing: normal;">
+                        <input type="checkbox" checked={maximize()} onChange={(e) => setMaximize(e.currentTarget.checked)} style="accent-color: hsl(var(--primary));" />
+                        <span style="font-size: 0.85rem; font-weight: 500; color: hsl(var(--foreground));">Maximize</span>
+                      </label>
                     </div>
                   </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
                   <div class="advanced-field-group">
-                    <label>Width</label>
+                    <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Width (px)</label>
                     <input type="number" class="input-field" value={width()} onInput={(e) => setWidth(parseInt(e.currentTarget.value))} />
                   </div>
                   <div class="advanced-field-group">
-                    <label>Height</label>
+                    <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Height (px)</label>
                     <input type="number" class="input-field" value={height()} onInput={(e) => setHeight(parseInt(e.currentTarget.value))} />
                   </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1rem; margin-top: 1.5rem;">
                   <div class="advanced-field-group">
-                    <label>Target OS</label>
-                    <div class="pill-group">
-                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('windows') }} onClick={() => toggleOs('windows')}>Windows (.exe)</button>
-                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('mac') }} onClick={() => toggleOs('mac')}>macOS (.app)</button>
-                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('linux') }} onClick={() => toggleOs('linux')}>Linux (Binary)</button>
+                    <label style="font-size: 0.65rem; margin-bottom: 0.6rem;">Target OS Platforms</label>
+                    <div class="pill-group" style="gap: 0.75rem;">
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('windows') }} onClick={() => toggleOs('windows')} style="padding: 0.5rem 1rem; border-radius: 10px;">Windows (.exe)</button>
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('mac') }} onClick={() => toggleOs('mac')} style="padding: 0.5rem 1rem; border-radius: 10px;">macOS (.app)</button>
+                      <button type="button" class="pill-btn" classList={{ active: targetOs().includes('linux') }} onClick={() => toggleOs('linux')} style="padding: 0.5rem 1rem; border-radius: 10px;">Linux (Binary)</button>
                     </div>
                   </div>
                 </div>
@@ -361,26 +361,26 @@ export const CommandCenter: Component = () => {
 
             <Show when={!showAdvanced() && isUrl() && (showPreview() || isFetchingInfo())}>
               <div class="app-window-preview fade-in">
-                <div class="app-window-header" classList={{ "windows-header": headerOsStyle() !== "mac" }}>
+                <div class="app-window-header" style="height: 48px; padding: 0 1.25rem;" classList={{ "windows-header": headerOsStyle() !== "mac" }}>
                   <Show when={headerOsStyle() === "mac"}>
-                    <div class="window-controls mac">
-                      <div class="control close" />
-                      <div class="control minimize" />
-                      <div class="control maximize" />
+                    <div class="window-controls mac" style="gap: 10px;">
+                      <div class="control close" style="width: 14px; height: 14px;" />
+                      <div class="control minimize" style="width: 14px; height: 14px;" />
+                      <div class="control maximize" style="width: 14px; height: 14px;" />
                     </div>
                   </Show>
                   <div class="window-title" style={headerOsStyle() !== "mac" ? "margin-right: auto;" : ""}>
-                    <Show when={getEffectiveIcon()} fallback={<div class="wapp-icon" style="width: 14px; height: 14px; font-size: 0.5rem; border-radius: 2px;">{name().charAt(0) || "W"}</div>}>
-                      <img src={getEffectiveIcon()} class="preview-favicon" style="width: 14px; height: 14px;" />
+                    <Show when={getEffectiveIcon()} fallback={<div class="wapp-icon-container" style="width: 18px; height: 18px; font-size: 0.6rem; border-radius: 4px; box-shadow: none;">{name().charAt(0) || "W"}</div>}>
+                      <img src={getEffectiveIcon()} class="preview-favicon" style="width: 18px; height: 18px;" />
                     </Show>
-                    <span>{name() || "New Wapp"}</span>
+                    <span style="font-weight: 600; font-size: 0.85rem;">{name() || "New Wapp"}</span>
                   </div>
                   <div style="margin-left: auto; display: flex; align-items: stretch; height: 100%;">
                     <Show when={headerOsStyle() !== "mac"}>
                       <div class="window-controls windows">
-                        <div class="win-control win-minimize"><Minus size={14} /></div>
-                        <div class="win-control win-maximize"><Square size={10} /></div>
-                        <div class="win-control win-close"><X size={14} /></div>
+                        <div class="win-control win-minimize"><Minus size={16} /></div>
+                        <div class="win-control win-maximize"><Square size={12} /></div>
+                        <div class="win-control win-close" style="width: 52px;"><X size={18} /></div>
                       </div>
                     </Show>
                   </div>
@@ -389,23 +389,23 @@ export const CommandCenter: Component = () => {
                 <div
                   ref={previewPlaceholder}
                   class="interactive-viewport"
-                  style="background: #000;"
+                  style="background: #09090b; height: 480px;"
                 />
               </div>
             </Show>
 
             <Show when={!showAdvanced() && filteredExistingWapps().length > 0}>
-              <div class="search-results fade-in">
-                <div style="padding: 0.5rem 1rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.04em; border-bottom: 1px solid hsl(var(--border));">Existing Applications</div>
+              <div class="search-results fade-in" style="border-radius: 18px; border: 1px solid hsl(var(--border)); padding: 0.5rem;">
+                <div style="padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Already Created</div>
                 <For each={filteredExistingWapps()}>
                   {(wapp) => (
-                    <div class="search-item" onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}>
-                      <div class="wapp-icon" style="width: 24px; height: 24px; font-size: 0.7rem;">{wapp.name.charAt(0)}</div>
-                      <div class="search-item-info">
-                        <span class="search-item-name">{wapp.name}</span>
-                        <span class="search-item-url">{wapp.url}</span>
+                    <div class="search-item" style="border: none; border-radius: 12px; margin-bottom: 2px; padding: 0.875rem 1rem;" onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}>
+                      <div class="wapp-icon-container" style="width: 32px; height: 32px; font-size: 0.8rem; box-shadow: none; border-radius: 8px;">{wapp.name.charAt(0)}</div>
+                      <div class="search-item-info" style="gap: 0.125rem;">
+                        <span class="search-item-name" style="font-weight: 600;">{wapp.name}</span>
+                        <span class="search-item-url" style="opacity: 0.7;">{wapp.url}</span>
                       </div>
-                      <div style="margin-left: auto;"><Play size={12} style="color: hsl(var(--muted-foreground))" /></div>
+                      <div style="margin-left: auto; opacity: 0.5;"><Play size={14} fill="currentColor" /></div>
                     </div>
                   )}
                 </For>
