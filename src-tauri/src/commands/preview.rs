@@ -1,4 +1,6 @@
-use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, webview::WebviewBuilder};
+use tauri::{
+    webview::WebviewBuilder, AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl,
+};
 
 #[tauri::command]
 pub async fn open_preview(
@@ -10,8 +12,10 @@ pub async fn open_preview(
     height: f64,
 ) -> Result<(), String> {
     // Get the Window instance directly for add_child
-    let window = app_handle.get_window("main").ok_or("Main window not found")?;
-    
+    let window = app_handle
+        .get_window("main")
+        .ok_or("Main window not found")?;
+
     // Check if child webview already exists (webview labels are global)
     if let Some(preview) = app_handle.get_webview("preview") {
         let _ = preview.navigate(url.parse().map_err(|e| format!("Invalid URL: {}", e))?);
@@ -22,13 +26,18 @@ pub async fn open_preview(
     }
 
     // In Tauri v2, add_child is an inherent method on Window (requires 'unstable' feature)
-    let builder = WebviewBuilder::new("preview", WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?));
-    
-    let _preview = window.add_child(
-        builder,
-        LogicalPosition::new(x, y),
-        LogicalSize::new(width, height),
-    ).map_err(|e| e.to_string())?;
+    let builder = WebviewBuilder::new(
+        "preview",
+        WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?),
+    );
+
+    let _preview = window
+        .add_child(
+            builder,
+            LogicalPosition::new(x, y),
+            LogicalSize::new(width, height),
+        )
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

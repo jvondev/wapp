@@ -1,12 +1,12 @@
-use std::process::Command;
-use std::path::{Path, PathBuf};
+use crate::models::{BuildProgress, WappConfig};
+use crate::utils::{get_config_file_path, get_workspace_dir};
+use base64::{engine::general_purpose, Engine as _};
+use image::DynamicImage;
 use std::fs::{self, File};
 use std::io::Cursor;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use tauri::{AppHandle, Emitter, Manager};
-use crate::models::{WappConfig, BuildProgress};
-use crate::utils::{get_workspace_dir, get_config_file_path};
-use base64::{Engine as _, engine::general_purpose};
-use image::DynamicImage;
 
 // ---------------------------------------------------------------------------
 // ICO / ICNS generators (used as temp files for rcedit / macOS)
@@ -30,8 +30,10 @@ fn generate_ico(img: &DynamicImage) -> Result<Vec<u8>, String> {
 fn generate_icns(img: &DynamicImage) -> Result<Vec<u8>, String> {
     let mut family = icns::IconFamily::new();
     let mut png_bytes = Cursor::new(Vec::new());
-    img.write_to(&mut png_bytes, image::ImageFormat::Png).map_err(|e| e.to_string())?;
-    let image = icns::Image::read_png(png_bytes.into_inner().as_slice()).map_err(|e| e.to_string())?;
+    img.write_to(&mut png_bytes, image::ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    let image =
+        icns::Image::read_png(png_bytes.into_inner().as_slice()).map_err(|e| e.to_string())?;
     family.add_icon(&image).map_err(|e| e.to_string())?;
     let mut cursor = Cursor::new(Vec::new());
     family.write(&mut cursor).map_err(|e| e.to_string())?;
@@ -54,7 +56,10 @@ fn ensure_rcedit(workspace_dir: &Path) -> Result<PathBuf, String> {
     let url = "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe";
     let status = Command::new("powershell")
         .args([
-            "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
             &format!(
                 "Invoke-WebRequest -Uri '{}' -OutFile '{}' -UseBasicParsing",
                 url,
@@ -84,12 +89,17 @@ fn apply_icon_cross_platform(
     if parts.len() != 2 {
         return Err("Invalid icon data format".into());
     }
-    let bytes = general_purpose::STANDARD.decode(parts[1]).map_err(|e| e.to_string())?;
+    let bytes = general_purpose::STANDARD
+        .decode(parts[1])
+        .map_err(|e| e.to_string())?;
     let img = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
 
     if target_os == "windows" {
         let ico_bytes = generate_ico(&img)?;
-        let ico_tmp = workspace_dir.join(".tools").join(format!("__icon_tmp_{}.ico", std::time::UNIX_EPOCH.elapsed().unwrap().as_millis()));
+        let ico_tmp = workspace_dir.join(".tools").join(format!(
+            "__icon_tmp_{}.ico",
+            std::time::UNIX_EPOCH.elapsed().unwrap().as_millis()
+        ));
         let _ = fs::create_dir_all(ico_tmp.parent().unwrap());
         fs::write(&ico_tmp, &ico_bytes).map_err(|e| e.to_string())?;
 
@@ -200,9 +210,13 @@ pub fn build_wapp(
             );
         };
 
-        emit(&format!("Initializing build for {}...", name_clone), "running");
+        emit(
+            &format!("Initializing build for {}...", name_clone),
+            "running",
+        );
 
-        let safe_name = name_clone.replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '_', "_");
+        let safe_name =
+            name_clone.replace(|c: char| !c.is_alphanumeric() && c != '-' && c != '_', "_");
         let app_folder = workspace_dir.join(&safe_name);
         let _ = fs::create_dir_all(&app_folder);
 
@@ -223,7 +237,10 @@ pub fn build_wapp(
                 _ => "exe",
             };
 
-            emit(&format!("Building for {}: {}...", target_os, fmt), "running");
+            emit(
+                &format!("Building for {}: {}...", target_os, fmt),
+                "running",
+            );
 
             // Select correct base binary
             let base_bin_name = match target_os {
@@ -233,13 +250,8 @@ pub fn build_wapp(
             };
             let base_exe_path = resource_dir.join("bin").join(base_bin_name);
 
-            let (final_exe_path, config_path) = build_for_format(
-                &app_folder,
-                &name_clone,
-                fmt,
-                target_os,
-                &base_exe_path,
-            );
+            let (final_exe_path, config_path) =
+                build_for_format(&app_folder, &name_clone, fmt, target_os, &base_exe_path);
 
             // Write runtime config
             let runtime_config = serde_json::json!({
@@ -251,12 +263,23 @@ pub fn build_wapp(
                 "hide_title_bar": hide_title_bar,
                 "maximize": maximize
             });
-            let _ = fs::write(&config_path, serde_json::to_string_pretty(&runtime_config).unwrap());
+            let _ = fs::write(
+                &config_path,
+                serde_json::to_string_pretty(&runtime_config).unwrap(),
+            );
 
             // Apply icon based on target OS
             if let Some(ref icon_data) = icon {
-                match apply_icon_cross_platform(&final_exe_path, icon_data, &workspace_dir, target_os) {
-                    Ok(_) => emit(&format!("Icon applied for {} [{}]", name_clone, fmt), "running"),
+                match apply_icon_cross_platform(
+                    &final_exe_path,
+                    icon_data,
+                    &workspace_dir,
+                    target_os,
+                ) {
+                    Ok(_) => emit(
+                        &format!("Icon applied for {} [{}]", name_clone, fmt),
+                        "running",
+                    ),
                     Err(e) => emit(&format!("Icon skipped ({})", e), "running"),
                 }
             }
@@ -299,10 +322,7 @@ pub fn build_wapp(
         std::thread::sleep(std::time::Duration::from_millis(50));
         let _ = launch_wapp(path_str);
 
-        emit(
-            &format!("Successfully built {}!", name_clone),
-            "success",
-        );
+        emit(&format!("Successfully built {}!", name_clone), "success");
     });
 
     Ok(())
@@ -366,13 +386,25 @@ pub fn launch_wapp(path: String) -> Result<(), String> {
     }
 
     #[cfg(target_os = "windows")]
-    Command::new("cmd").arg("/C").arg("start").arg("").arg(path).spawn().map_err(|e| e.to_string())?;
+    Command::new("cmd")
+        .arg("/C")
+        .arg("start")
+        .arg("")
+        .arg(path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "macos")]
-    Command::new("open").arg(path).spawn().map_err(|e| e.to_string())?;
+    Command::new("open")
+        .arg(path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "linux")]
-    Command::new("xdg-open").arg(path).spawn().map_err(|e| e.to_string())?;
+    Command::new("xdg-open")
+        .arg(path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -381,11 +413,20 @@ pub fn launch_wapp(path: String) -> Result<(), String> {
 pub fn open_workspace_folder(app_handle: AppHandle) -> Result<(), String> {
     let path = get_workspace_dir(&app_handle);
     #[cfg(target_os = "windows")]
-    Command::new("explorer").arg(&path).spawn().map_err(|e| e.to_string())?;
+    Command::new("explorer")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
     #[cfg(target_os = "macos")]
-    Command::new("open").arg(&path).spawn().map_err(|e| e.to_string())?;
+    Command::new("open")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
     #[cfg(target_os = "linux")]
-    Command::new("xdg-open").arg(&path).spawn().map_err(|e| e.to_string())?;
+    Command::new("xdg-open")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -401,9 +442,13 @@ pub fn delete_wapp(app_handle: AppHandle, id: String) -> Result<(), String> {
         let is_mac_app = path.to_string_lossy().ends_with(".app");
         let app_folder = if is_mac_app {
             // path is .app bundle → parent is fmt dir → parent is app_folder
-            path.parent().and_then(|p| p.parent()).map(|p| p.to_path_buf())
+            path.parent()
+                .and_then(|p| p.parent())
+                .map(|p| p.to_path_buf())
         } else {
-            path.parent().and_then(|p| p.parent()).map(|p| p.to_path_buf())
+            path.parent()
+                .and_then(|p| p.parent())
+                .map(|p| p.to_path_buf())
         };
 
         if let Some(folder) = app_folder {
@@ -448,7 +493,10 @@ pub fn edit_wapp(
         let exe_path = PathBuf::from(&wapp.path);
         let is_mac_app = wapp.path.ends_with(".app");
         let config_path = if is_mac_app {
-            exe_path.join("Contents").join("MacOS").join("wapp.config.json")
+            exe_path
+                .join("Contents")
+                .join("MacOS")
+                .join("wapp.config.json")
         } else {
             exe_path.parent().unwrap().join("wapp.config.json")
         };
@@ -462,10 +510,19 @@ pub fn edit_wapp(
             "hide_title_bar": wapp.hide_title_bar,
             "maximize": wapp.maximize
         });
-        let _ = fs::write(&config_path, serde_json::to_string_pretty(&runtime_config).unwrap());
+        let _ = fs::write(
+            &config_path,
+            serde_json::to_string_pretty(&runtime_config).unwrap(),
+        );
 
         if let Some(ref icon_data) = wapp.icon {
-            let target_os = if is_mac_app { "mac" } else if wapp.path.ends_with(".exe") { "windows" } else { "linux" };
+            let target_os = if is_mac_app {
+                "mac"
+            } else if wapp.path.ends_with(".exe") {
+                "windows"
+            } else {
+                "linux"
+            };
             let _ = apply_icon_cross_platform(&exe_path, icon_data, &workspace_dir, target_os);
         }
 

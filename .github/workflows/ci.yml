@@ -42,7 +42,7 @@ jobs:
           cache: npm
       - run: npm ci
       - uses: dtolnay/rust-toolchain@stable
-      - run: npm run build
+      - run: npm run build:app
         env:
           TAURI_ENV_PLATFORM: linux
           TAURI_ENV_SIGNING_PRIVATE_KEY: ""

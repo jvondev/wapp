@@ -1,8 +1,8 @@
+mod commands;
 mod models;
 mod utils;
-mod commands;
 
-use commands::{wapp, metadata, preview};
+use commands::{metadata, preview, wapp};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
