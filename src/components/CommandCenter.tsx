@@ -230,7 +230,7 @@ export const CommandCenter: Component = () => {
 
           <div style="position: relative;">
             <form onSubmit={handleSubmit} class="command-bar">
-              <Globe size={24} style="color: #52525b" />
+              <Globe size={24} style="color: hsl(var(--muted-foreground))" />
               <input
                 autofocus
                 type="text"
@@ -239,6 +239,11 @@ export const CommandCenter: Component = () => {
                 value={url()}
                 onInput={(e) => handleUrlChange(e.currentTarget.value)}
               />
+              <Show when={!isUrl()}>
+                <div class="kbd-shortcut">
+                  <kbd>⌘</kbd> <kbd>K</kbd>
+                </div>
+              </Show>
               <Show when={isUrl()}>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
                   <button
@@ -268,7 +273,7 @@ export const CommandCenter: Component = () => {
             <Show when={showAdvanced()}>
               <div class="advanced-card fade-in">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                  <h3 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #52525b; letter-spacing: 0.05em;">Configuration</h3>
+                  <h3 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Configuration</h3>
                   <button class="btn-icon" onClick={() => setShowAdvanced(false)}><X size={14} /></button>
                 </div>
 
@@ -391,7 +396,7 @@ export const CommandCenter: Component = () => {
 
             <Show when={!showAdvanced() && filteredExistingWapps().length > 0}>
               <div class="search-results fade-in">
-                <div style="padding: 0.5rem 1rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: #52525b; border-bottom: 1px solid rgba(255,255,255,0.03);">Existing Applications</div>
+                <div style="padding: 0.5rem 1rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.04em; border-bottom: 1px solid hsl(var(--border));">Existing Applications</div>
                 <For each={filteredExistingWapps()}>
                   {(wapp) => (
                     <div class="search-item" onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}>
@@ -400,7 +405,7 @@ export const CommandCenter: Component = () => {
                         <span class="search-item-name">{wapp.name}</span>
                         <span class="search-item-url">{wapp.url}</span>
                       </div>
-                      <div style="margin-left: auto;"><Play size={12} style="color: #52525b" /></div>
+                      <div style="margin-left: auto;"><Play size={12} style="color: hsl(var(--muted-foreground))" /></div>
                     </div>
                   )}
                 </For>

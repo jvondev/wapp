@@ -2,6 +2,29 @@ import { Component, Show } from "solid-js";
 import { Play, Trash2, Loader2 } from "lucide-solid";
 import { WappConfig } from "../types";
 
+export const SkeletonCard: Component = () => (
+  <div class="wapp-card" style="pointer-events: none; gap: 1rem;">
+    <div style="display: flex; align-items: center; gap: 0.625rem;">
+      <div class="skeleton-shimmer" style="width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;" />
+      <div style="display: flex; flex-direction: column; gap: 0.375rem; flex: 1; overflow: hidden;">
+        <div class="skeleton-shimmer" style="height: 12px; width: 65%; border-radius: 4px;" />
+        <div class="skeleton-shimmer" style="height: 10px; width: 45%; border-radius: 4px;" />
+      </div>
+    </div>
+    <div>
+      <div class="skeleton-shimmer" style="height: 18px; width: 40px; border-radius: 4px;" />
+    </div>
+    <div style="border-top: 1px solid hsl(var(--border)); padding-top: 0.625rem; display: flex; justify-content: space-between; align-items: center;">
+      <div class="skeleton-shimmer" style="height: 10px; width: 50px; border-radius: 4px;" />
+      <div style="display: flex; gap: 0.35rem;">
+        <div class="skeleton-shimmer" style="width: 24px; height: 24px; border-radius: 4px;" />
+        <div class="skeleton-shimmer" style="width: 24px; height: 24px; border-radius: 4px;" />
+        <div class="skeleton-shimmer" style="width: 24px; height: 24px; border-radius: 4px;" />
+      </div>
+    </div>
+  </div>
+);
+
 interface WappCardProps {
   wapp: WappConfig;
   onLaunch: (path: string) => void;

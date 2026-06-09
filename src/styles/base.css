@@ -34,26 +34,26 @@
 }
 
 [data-theme="dark"] {
-  /* Dark theme */
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
+  /* Premium Dark theme - Zinc/Slate inspired */
+  --background: 240 10% 3.9%; /* #09090b */
+  --foreground: 0 0% 98%;     /* #fafafa */
   
-  --card: 240 10% 5.5%;
+  --card: 240 5% 9.6%;        /* #18181b - Elevated card */
   --card-foreground: 0 0% 98%;
   
-  --popover: 240 10% 3.9%;
+  --popover: 240 5% 9.6%;
   --popover-foreground: 0 0% 98%;
   
   --primary: 0 0% 98%;
   --primary-foreground: 240 5.9% 10%;
   
-  --secondary: 240 3.7% 15.9%;
+  --secondary: 240 3.7% 15.9%; /* #27272a */
   --secondary-foreground: 0 0% 98%;
   
-  --muted: 240 3.7% 10%;
-  --muted-foreground: 240 5% 64.9%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%; /* #a1a1aa */
   
-  --accent: 240 3.7% 15.8%;
+  --accent: 240 3.7% 15.9%;
   --accent-foreground: 0 0% 98%;
   
   --destructive: 0 62.8% 30.6%;
@@ -71,7 +71,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   overflow: hidden;
@@ -108,6 +108,11 @@ body {
 
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

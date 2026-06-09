@@ -20,6 +20,7 @@ interface AppState {
   notifications: Notification[];
   editingWapp: WappConfig | null;
   theme: "light" | "dark";
+  isLoading: boolean;
 }
 
 const STORAGE_KEY = "wapp_prefs";
@@ -33,6 +34,7 @@ const initialState: AppState = {
   notifications: [],
   editingWapp: null,
   theme: (localStorage.getItem(`${STORAGE_KEY}_theme`) as any) || "light",
+  isLoading: true,
 };
 
 function createAppStore() {
@@ -72,8 +74,13 @@ function createAppStore() {
 
 
     loadWapps: async () => {
-      const loaded = await tauriService.loadWapps();
-      setState("wapps", loaded);
+      setState("isLoading", true);
+      try {
+        const loaded = await tauriService.loadWapps();
+        setState("wapps", loaded);
+      } finally {
+        setState("isLoading", false);
+      }
     },
 
     deleteWapp: async (id: string) => {
