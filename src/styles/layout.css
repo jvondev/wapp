@@ -51,9 +51,3 @@
   justify-content: space-between;
   align-items: center;
 }
-
-.sidebar-footer {
-  margin-top: auto;
-  border-top: 1px solid hsl(var(--border));
-  padding-top: 0.75rem;
-}

@@ -1,64 +1,45 @@
 /* Base variables, resets and global animations */
 
 :root {
-  /* Premium Light theme - Zinc/Neutral inspired */
-  --background: 240 4.8% 98%; /* Slightly cooler off-white for depth */
+  --background: 240 4.8% 98%;
   --foreground: 240 10% 3.9%;
-  
-  --card: 0 0% 100%; /* Pure white surfaces */
+  --card: 0 0% 100%;
   --card-foreground: 240 10% 3.9%;
-  
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 3.9%;
-  
   --primary: 240 5.9% 10%;
   --primary-foreground: 0 0% 98%;
-  
   --secondary: 240 4.8% 95.9%;
   --secondary-foreground: 240 5.9% 10%;
-  
   --muted: 240 4.8% 95.9%;
   --muted-foreground: 240 3.8% 46.1%;
-  
   --accent: 240 4.8% 95.9%;
   --accent-foreground: 240 5.9% 10%;
-  
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 98%;
-  
   --border: 240 5.9% 90%;
   --input: 240 5.9% 90%;
   --ring: 240 5.9% 10%;
-  
   --radius: 0.5rem;
 }
 
 [data-theme="dark"] {
-  /* Premium Dark theme - Zinc/Slate inspired */
-  --background: 240 10% 3.9%; /* #09090b */
-  --foreground: 0 0% 98%;     /* #fafafa */
-  
-  --card: 240 5% 9.6%;        /* #18181b - Elevated card */
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 5% 9.6%;
   --card-foreground: 0 0% 98%;
-  
   --popover: 240 5% 9.6%;
   --popover-foreground: 0 0% 98%;
-  
   --primary: 0 0% 98%;
   --primary-foreground: 240 5.9% 10%;
-  
-  --secondary: 240 3.7% 15.9%; /* #27272a */
+  --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
-  
   --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%; /* #a1a1aa */
-  
+  --muted-foreground: 240 5% 64.9%;
   --accent: 240 3.7% 15.9%;
   --accent-foreground: 0 0% 98%;
-  
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  
   --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
   --ring: 240 4.9% 83.9%;
@@ -96,14 +77,8 @@ body {
 }
 
 @keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideUp {
@@ -116,11 +91,21 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
 @keyframes spin {
-  from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-.loading-spinner {
-  animation: spin 2s linear infinite;
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeInFlush {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }

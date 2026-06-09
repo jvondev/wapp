@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { WappConfig, DependencyStatus, SiteInfo } from "../types";
+import { WappConfig, SiteInfo } from "../types";
 
 export const tauriService = {
   loadWapps: () => invoke<WappConfig[]>("load_wapps"),
@@ -33,18 +33,18 @@ export const tauriService = {
     maximize: boolean;
     os: string[];
   }) => invoke<void>("build_wapp", args),
-  
+
   launchWapp: (path: string) => invoke<void>("launch_wapp", { path }),
-  
+
   openWorkspaceFolder: () => invoke<void>("open_workspace_folder"),
-  
+
   getSiteInfo: (url: string) => invoke<SiteInfo>("get_site_info", { url }),
-  
-  openPreview: (args: { url: string; x: number; y: number; width: number; height: number }) => 
+
+  openPreview: (args: { url: string; x: number; y: number; width: number; height: number }) =>
     invoke<void>("open_preview", args),
-    
-  updatePreviewBounds: (args: { x: number; y: number; width: number; height: number }) => 
+
+  updatePreviewBounds: (args: { x: number; y: number; width: number; height: number }) =>
     invoke<void>("update_preview_bounds", args),
-    
+
   closePreview: () => invoke<void>("close_preview"),
 };

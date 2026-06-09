@@ -1,4 +1,23 @@
-// Shared Interface Definitions
+export interface BuildInput {
+  name: string;
+  url: string;
+  category: string;
+  width: number;
+  height: number;
+  hideTitle: boolean;
+  maximize: boolean;
+  os: string[];
+}
+
+export interface EditInput {
+  name: string;
+  url: string;
+  category: string;
+  width: number;
+  height: number;
+  hideTitle: boolean;
+  maximize: boolean;
+}
 
 export interface WappConfig {
   id: string;
@@ -14,23 +33,10 @@ export interface WappConfig {
   path: string;
 }
 
-export interface DependencyStatus {
-  node_installed: boolean;
-  rust_installed: boolean;
-  pake_installed: boolean;
-  node_version: string;
-  rust_version: string;
-}
-
 export interface BuildProgressEvent {
   app_id: string;
   message: string;
-  status: string; // "running" | "success" | "error"
-}
-
-export interface InstallProgressEvent {
-  message: string;
-  status: string; // "running" | "error" | "done"
+  status: "running" | "success" | "error";
 }
 
 export interface ActiveBuild {

@@ -22,7 +22,6 @@ pub struct BuildProgress {
     pub status: String, // "running", "success", "error"
 }
 
-
 #[derive(Serialize, Debug)]
 pub struct SiteInfo {
     pub title: Option<String>,

@@ -172,7 +172,7 @@ pub fn build_wapp(
     icon: Option<String>,
     width: u32,
     height: u32,
-    hide_title_bar: bool,
+    #[serde(rename = "hideTitleBar")] hide_title_bar: bool,
     category: String,
     created_at: String,
     maximize: bool,

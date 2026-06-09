@@ -1,6 +1,6 @@
 import { createStore, produce } from "solid-js/store";
 import { createContext, useContext, JSX, onMount, onCleanup } from "solid-js";
-import { WappConfig, ActiveBuild, BuildProgressEvent } from "../types";
+import { WappConfig, ActiveBuild, BuildProgressEvent, BuildInput, EditInput } from "../types";
 import { tauriService } from "../services/tauri";
 import { listen } from "@tauri-apps/api/event";
 
@@ -98,7 +98,7 @@ function createAppStore() {
       setState("activeBuilds", produce(prev => { delete prev[id]; }));
     },
 
-    startBuild: async (data: any, favicon: string) => {
+    startBuild: async (data: BuildInput, favicon: string) => {
       const uniqueId = Math.random().toString(36).substring(2, 9);
       setState("activeBuilds", uniqueId, {
         id: uniqueId,
@@ -134,7 +134,7 @@ function createAppStore() {
         actions.addNotification(`Build failed: ${err}`, "error");
       }
     },
-    editWapp: async (wappId: string, data: any, icon: string | null) => {
+    editWapp: async (wappId: string, data: EditInput, icon: string | null) => {
       try {
         await tauriService.editWapp({
           id: wappId,
