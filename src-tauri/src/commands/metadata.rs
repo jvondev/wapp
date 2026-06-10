@@ -97,7 +97,7 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
 
     if let Some(ref icon_url) = icon {
         if let Ok(icon_res) = reqwest::Client::new()
-            .get(&icon_url)
+            .get(icon_url)
             .header(reqwest::header::USER_AGENT, MODERN_USER_AGENT)
             .send()
             .await
