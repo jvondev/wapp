@@ -17,30 +17,27 @@ export const WappGrid: Component = () => {
     return builds.filter(b => b.category === state.filterCategory);
   };
 
-  const FilterHeader = () => (
-    <Show when={state.wapps.length > 0 || Object.keys(state.activeBuilds).length > 0 || state.isLoading}>
-      <div class="workspace-header stagger-item" style="animation-delay: 0.05s">
-        <div class="workspace-filters" style="background: hsl(var(--muted) / 0.5); padding: 0.25rem; border-radius: 10px; border: 1px solid hsl(var(--border));">
-          <For each={["All", "Work", "Enterprise"]}>
-            {(cat) => (
-              <button
-                class="filter-btn"
-                classList={{ active: state.filterCategory === cat }}
-                onClick={() => actions.setFilterCategory(cat)}
-                style="padding: 0.4rem 1rem; border-radius: 7px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);"
-              >
-                {cat}
-              </button>
-            )}
-          </For>
-        </div>
-      </div>
-    </Show>
-  );
 
   return (
     <>
-      <FilterHeader />
+      <Show when={state.wapps.length > 0 || Object.keys(state.activeBuilds).length > 0 || state.isLoading}>
+        <div class="workspace-header stagger-item" style="animation-delay: 0.05s">
+          <div class="workspace-filters" style="background: hsl(var(--muted) / 0.5); padding: 0.25rem; border-radius: 10px; border: 1px solid hsl(var(--border));">
+            <For each={["All", "Work", "Enterprise"]}>
+              {(cat) => (
+                <button
+                  class="filter-btn"
+                  classList={{ active: state.filterCategory === cat }}
+                  onClick={() => actions.setFilterCategory(cat)}
+                  style="padding: 0.4rem 1rem; border-radius: 7px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);"
+                >
+                  {cat}
+                </button>
+              )}
+            </For>
+          </div>
+        </div>
+      </Show>
 
       <div class="wapp-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 2rem; padding: 1rem 0;">
         {/* Skeleton shimmer while fetching */}

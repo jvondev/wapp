@@ -182,7 +182,8 @@ export const CommandCenter: Component = () => {
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    if (!isUrl() || !name().trim()) return;
+    const cleanName = name().trim();
+    if (!isUrl() || !cleanName) return;
     const normalizedUrl = url().startsWith("http") ? url() : `https://${url()}`;
     actions.startBuild({
       name: name(),

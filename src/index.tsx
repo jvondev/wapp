@@ -5,8 +5,13 @@ import { JSX } from "solid-js";
 
 const StoreExposer = (props: { children: JSX.Element }) => {
   const store = useAppStore();
-  const win = window as unknown as { __WAPP_STORE__: unknown };
-  win.__WAPP_STORE__ = store;
+  // Safe exposure for debugging
+  Object.defineProperty(window, "__WAPP_STORE__", {
+    value: store,
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  });
   return props.children;
 };
 
