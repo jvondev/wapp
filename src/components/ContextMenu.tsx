@@ -1,4 +1,10 @@
-import { Component, For, onMount, onCleanup, JSX } from "solid-js";
+import { Component, For, onMount, onCleanup, createSignal } from "solid-js";
+
+interface IconProps {
+  size?: number | string;
+  color?: string;
+  [key: string]: any;
+}
 
 interface ContextMenuProps {
   x: number;
@@ -6,7 +12,7 @@ interface ContextMenuProps {
   onClose: () => void;
   options: {
     label: string;
-    icon: (props: any) => JSX.Element;
+    icon: Component<IconProps>;
     onClick: () => void;
     variant?: "default" | "danger";
   }[];
@@ -21,20 +27,28 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
     }
   };
 
+  // Safe positioning logic to avoid layout jump
+  const [position, setPosition] = createSignal({ x: props.x, y: props.y, opacity: 0 });
+
   onMount(() => {
     document.addEventListener("mousedown", handleClickOutside);
-    // Adjust position if it goes off screen
+
     if (menuRef) {
       const rect = menuRef.getBoundingClientRect();
       const screenWidth = window.innerWidth;
       const screenHeight = window.innerHeight;
 
+      let nextX = props.x;
+      let nextY = props.y;
+
       if (props.x + rect.width > screenWidth) {
-        menuRef.style.left = `${screenWidth - rect.width - 10}px`;
+        nextX = screenWidth - rect.width - 10;
       }
       if (props.y + rect.height > screenHeight) {
-        menuRef.style.top = `${screenHeight - rect.height - 10}px`;
+        nextY = screenHeight - rect.height - 10;
       }
+
+      setPosition({ x: nextX, y: nextY, opacity: 1 });
     }
   });
 
@@ -48,8 +62,9 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
       class="context-menu"
       style={{
         position: "fixed",
-        top: `${props.y}px`,
-        left: `${props.x}px`,
+        top: `${position().y}px`,
+        left: `${position().x}px`,
+        opacity: position().opacity,
         "z-index": 1000,
       }}
     >

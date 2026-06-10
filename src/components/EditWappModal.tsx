@@ -41,21 +41,25 @@ export const EditWappModal: Component = () => {
     }
   };
 
-  const handleSubmit = (e: Event) => {
+  const handleSubmit = async (e: Event) => {
     e.preventDefault();
     if (!state.editingWapp) return;
     
-    actions.editWapp(state.editingWapp.id, {
-      name: name(),
-      url: url(),
-      category: category(),
-      width: width(),
-      height: height(),
-      hideTitle: hideTitle(),
-      maximize: maximize(),
-    }, customIcon());
-    
-    actions.setEditingWapp(null);
+    try {
+      await actions.editWapp(state.editingWapp.id, {
+        name: name(),
+        url: url(),
+        category: category(),
+        width: width(),
+        height: height(),
+        hideTitle: hideTitle(),
+        maximize: maximize(),
+      }, customIcon());
+
+      actions.setEditingWapp(null);
+    } catch (err) {
+      console.error("Failed to edit wapp:", err);
+    }
   };
 
   return (
@@ -80,9 +84,16 @@ export const EditWappModal: Component = () => {
                 </div>
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
                   <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Visual Identity</span>
-                  <button type="button" class="btn-icon" style="font-size: 0.8rem; padding: 0 1rem; background: hsl(var(--background)); width: auto; height: 32px; border-radius: 8px; font-weight: 600;" onClick={() => fileInput?.click()}>
-                    Change Icon
-                  </button>
+                  <div style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn-icon" style="font-size: 0.8rem; padding: 0 1rem; background: hsl(var(--background)); width: auto; height: 32px; border-radius: 8px; font-weight: 600;" onClick={() => fileInput?.click()}>
+                      Change Icon
+                    </button>
+                    <Show when={customIcon()}>
+                      <button type="button" class="btn-icon" style="font-size: 0.8rem; padding: 0 1rem; background: transparent; color: #ef4444; border-color: rgba(239, 68, 68, 0.2); width: auto; height: 32px; border-radius: 8px; font-weight: 600;" onClick={() => setCustomIcon(null)}>
+                        Remove
+                      </button>
+                    </Show>
+                  </div>
                   <input ref={fileInput} type="file" hidden accept="image/*" onInput={handleIconUpload} />
                 </div>
               </div>

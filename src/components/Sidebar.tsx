@@ -2,15 +2,28 @@ import { Component } from "solid-js";
 import { LayoutGrid, Plus, Sparkles } from "lucide-solid";
 import { useAppStore } from "../store";
 
+const SidebarLogo = () => (
+  <div class="sidebar-logo-container">
+    <div class="sidebar-logo">w</div>
+    <span class="sidebar-brand-name">wapp</span>
+  </div>
+);
+
+const ProTip = () => (
+  <div class="sidebar-footer">
+    <div class="pro-tip-box">
+      <p class="pro-tip-title">Pro Tip</p>
+      <p class="pro-tip-text">Press <kbd class="kbd-hint">⌘ K</kbd> to quickly create a new wapp.</p>
+    </div>
+  </div>
+);
+
 export const Sidebar: Component = () => {
   const [state, actions] = useAppStore();
 
   return (
     <aside class="sidebar">
-      <div class="sidebar-logo-container">
-        <div class="sidebar-logo">w</div>
-        <span class="sidebar-brand-name">wapp</span>
-      </div>
+      <SidebarLogo />
 
       <button
         class="sidebar-btn-primary"
@@ -41,12 +54,7 @@ export const Sidebar: Component = () => {
         </button>
       </nav>
 
-      <div class="sidebar-footer">
-        <div class="pro-tip-box">
-           <p class="pro-tip-title">Pro Tip</p>
-           <p class="pro-tip-text">Press <kbd class="kbd-hint">⌘ K</kbd> to quickly create a new wapp.</p>
-        </div>
-      </div>
+      <ProTip />
     </aside>
   );
 };

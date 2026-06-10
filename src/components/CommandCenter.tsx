@@ -182,7 +182,7 @@ export const CommandCenter: Component = () => {
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
-    if (!isUrl()) return;
+    if (!isUrl() || !name().trim()) return;
     const normalizedUrl = url().startsWith("http") ? url() : `https://${url()}`;
     actions.startBuild({
       name: name(),
@@ -399,14 +399,20 @@ export const CommandCenter: Component = () => {
                 <div style="padding: 0.75rem 1rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Already Created</div>
                 <For each={filteredExistingWapps()}>
                   {(wapp) => (
-                    <div class="search-item" style="border: none; border-radius: 12px; margin-bottom: 2px; padding: 0.875rem 1rem;" onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}>
+                    <button
+                      type="button"
+                      class="search-item"
+                      aria-label={`Launch ${wapp.name}`}
+                      style="width: 100%; text-align: left; background: transparent; border: none; border-radius: 12px; margin-bottom: 2px; padding: 0.875rem 1rem; cursor: pointer; display: flex; align-items: center; gap: 1rem;"
+                      onClick={() => { tauriService.launchWapp(wapp.path); actions.setShowAddModal(false); }}
+                    >
                       <div class="wapp-icon-container" style="width: 32px; height: 32px; font-size: 0.8rem; box-shadow: none; border-radius: 8px;">{wapp.name.charAt(0)}</div>
-                      <div class="search-item-info" style="gap: 0.125rem;">
+                      <div class="search-item-info" style="display: flex; flex-direction: column; gap: 0.125rem;">
                         <span class="search-item-name" style="font-weight: 600;">{wapp.name}</span>
-                        <span class="search-item-url" style="opacity: 0.7;">{wapp.url}</span>
+                        <span class="search-item-url" style="opacity: 0.7; font-size: 0.75rem;">{wapp.url}</span>
                       </div>
                       <div style="margin-left: auto; opacity: 0.5;"><Play size={14} fill="currentColor" /></div>
-                    </div>
+                    </button>
                   )}
                 </For>
               </div>

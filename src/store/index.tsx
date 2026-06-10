@@ -37,7 +37,7 @@ const initialState: AppState = {
   isLoading: true,
 };
 
-function createAppStore() {
+const createAppStore = () => {
   const [state, setState] = createStore<AppState>(initialState);
 
   // Actions
