@@ -13,40 +13,15 @@
   font-weight: 800;
 }
 
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  color: hsl(var(--muted-foreground));
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
 .nav-item:hover {
-  background-color: hsl(var(--accent) / 0.5);
-  color: hsl(var(--foreground));
+  background-color: hsl(var(--accent) / 0.5) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
 .nav-item.active {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--foreground));
-  font-weight: 600;
-}
-
-.sidebar-add-btn {
-  width: 100%;
-  border: none;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  cursor: pointer;
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600 !important;
 }
 
 .filter-btn {
@@ -137,7 +112,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: hsla(var(--primary) / 0.1);
+  background: hsla(var(--primary) / 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -222,7 +197,7 @@
   border-radius: 24px;
 }
 
-/* Existing styles for Command Center etc. (kept and refined) */
+/* Command Center UI */
 .command-center-overlay {
   position: fixed;
   top: 0;
@@ -292,8 +267,8 @@
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, hsl(var(--primary)), #6366f1);
-  color: white;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
   border: none;
   cursor: pointer;
   transition: all 0.2s;
@@ -301,7 +276,7 @@
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .btn-icon {
@@ -395,4 +370,50 @@
 
 .context-menu-item.danger:hover {
   background: rgba(239, 68, 68, 0.1);
+}
+
+/* Onboarding / Empty State Centering */
+.empty-state-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.empty-state-os {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 480px;
+  padding: 4rem 2rem;
+}
+
+.empty-state-icon {
+  width: 80px;
+  height: 80px;
+  background: hsl(var(--muted) / 0.5);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2rem;
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+.empty-state-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: hsl(var(--foreground));
+  letter-spacing: -0.02em;
+}
+
+.empty-state-description {
+  font-size: 0.95rem;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
 }
