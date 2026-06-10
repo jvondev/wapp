@@ -229,18 +229,18 @@ export const CommandCenter: Component = () => {
         <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
 
           <div style="position: relative;">
-            <form onSubmit={handleSubmit} class="command-bar" style="border: 1px solid hsl(var(--primary) / 0.1);">
-              <Command size={22} style="color: hsl(var(--primary))" />
+            <form onSubmit={handleSubmit} class="command-bar">
+              <Command size={22} style="color: hsl(var(--muted-foreground))" />
               <input
                 autofocus
                 type="text"
                 class="command-input"
-                placeholder="Enter a web URL to begin..."
+                placeholder="Search apps or paste a URL..."
                 value={url()}
                 onInput={(e) => handleUrlChange(e.currentTarget.value)}
               />
               <Show when={!isUrl()}>
-                <div class="kbd-shortcut" style="padding: 0.3rem 0.5rem; border-radius: 8px;">
+                <div class="kbd-shortcut" style="padding: 0.3rem 0.6rem; border-radius: 8px; background: hsl(var(--muted) / 0.8); border: 1px solid hsl(var(--border) / 0.5); font-size: 0.75rem; color: hsl(var(--muted-foreground));">
                   <kbd>⌘</kbd> <kbd>K</kbd>
                 </div>
               </Show>
