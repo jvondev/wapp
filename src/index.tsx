@@ -5,7 +5,7 @@ import { JSX } from "solid-js";
 
 const StoreExposer = (props: { children: JSX.Element }) => {
   const store = useAppStore();
-  (window as any).__WAPP_STORE__ = store;
+  (window as unknown as { __WAPP_STORE__: unknown }).__WAPP_STORE__ = store;
   return props.children;
 };
 

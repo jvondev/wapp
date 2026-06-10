@@ -1,9 +1,12 @@
-import { Component, For, onMount, onCleanup, createSignal } from "solid-js";
+import { Component, For, onMount, onCleanup, createSignal, JSX } from "solid-js";
 
 interface IconProps {
   size?: number | string;
   color?: string;
-  [key: string]: any;
+  stroke?: string;
+  fill?: string;
+  class?: string;
+  style?: string | JSX.CSSProperties;
 }
 
 interface ContextMenuProps {
