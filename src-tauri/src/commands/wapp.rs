@@ -456,9 +456,8 @@ pub fn delete_wapp(app_handle: AppHandle, id: String) -> Result<(), String> {
     }
 }
 
-#[tauri::command]
-pub fn edit_wapp(
-    app_handle: tauri::AppHandle,
+#[derive(serde::Deserialize)]
+pub struct EditWappInput {
     id: String,
     name: String,
     url: String,
@@ -468,20 +467,23 @@ pub fn edit_wapp(
     hide_title_bar: bool,
     maximize: bool,
     category: String,
-) -> Result<(), String> {
+}
+
+#[tauri::command]
+pub fn edit_wapp(app_handle: tauri::AppHandle, input: EditWappInput) -> Result<(), String> {
     let workspace_dir = get_workspace_dir(&app_handle);
     let mut current_wapps = load_wapps(app_handle.clone());
 
-    if let Some(pos) = current_wapps.iter().position(|w| w.id == id) {
+    if let Some(pos) = current_wapps.iter().position(|w| w.id == input.id) {
         let mut wapp = current_wapps[pos].clone();
-        wapp.name = name.clone();
-        wapp.url = url.clone();
-        wapp.icon = icon.clone();
-        wapp.width = width;
-        wapp.height = height;
-        wapp.hide_title_bar = hide_title_bar;
-        wapp.maximize = maximize;
-        wapp.category = category.clone();
+        wapp.name = input.name.clone();
+        wapp.url = input.url.clone();
+        wapp.icon = input.icon.clone();
+        wapp.width = input.width;
+        wapp.height = input.height;
+        wapp.hide_title_bar = input.hide_title_bar;
+        wapp.maximize = input.maximize;
+        wapp.category = input.category.clone();
 
         let exe_path = PathBuf::from(&wapp.path);
         let is_mac_app = wapp.path.ends_with(".app");

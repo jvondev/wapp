@@ -18,7 +18,7 @@ export const tauriService = {
     hideTitleBar: boolean;
     maximize: boolean;
     category: string;
-  }) => invoke<void>("edit_wapp", args),
+  }) => invoke<void>("edit_wapp", { input: args }),
   
   buildWapp: (args: {
     id: string;
