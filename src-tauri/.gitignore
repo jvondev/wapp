@@ -7,4 +7,5 @@
 /gen/schemas
 
 # Sidecars
-/bin/
+/bin/*
+!/bin/.gitkeep
