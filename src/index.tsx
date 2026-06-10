@@ -1,6 +1,12 @@
 import { render } from "solid-js/web";
 import App from "./App";
-import { AppStoreProvider } from "./store";
+import { AppStoreProvider, useAppStore } from "./store";
+
+const StoreExposer = (props: { children: any }) => {
+  const store = useAppStore();
+  (window as any).__WAPP_STORE__ = store;
+  return props.children;
+};
 
 const root = document.getElementById("root");
 
@@ -8,7 +14,9 @@ if (root) {
   render(
     () => (
       <AppStoreProvider>
-        <App />
+        <StoreExposer>
+          <App />
+        </StoreExposer>
       </AppStoreProvider>
     ),
     root,
