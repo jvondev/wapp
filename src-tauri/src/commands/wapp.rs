@@ -441,16 +441,10 @@ pub fn delete_wapp(app_handle: AppHandle, id: String) -> Result<(), String> {
 
         // app_folder is the parent of the fmt subdir
         let is_mac_app = path.to_string_lossy().ends_with(".app");
-        let app_folder = if is_mac_app {
-            // path is .app bundle → parent is fmt dir → parent is app_folder
-            path.parent()
-                .and_then(|p| p.parent())
-                .map(|p| p.to_path_buf())
-        } else {
-            path.parent()
-                .and_then(|p| p.parent())
-                .map(|p| p.to_path_buf())
-        };
+        let app_folder = path
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|p| p.to_path_buf());
 
         if let Some(folder) = app_folder {
             let _ = fs::remove_dir_all(&folder);
@@ -482,14 +476,14 @@ pub fn edit_wapp(
 
     if let Some(pos) = current_wapps.iter().position(|w| w.id == id) {
         let mut wapp = current_wapps[pos].clone();
-        wapp.name = name.clone();
-        wapp.url = url.clone();
-        wapp.icon = icon.clone();
+        wapp.name.clone_from(&name);
+        wapp.url.clone_from(&url);
+        wapp.icon.clone_from(&icon);
         wapp.width = width;
         wapp.height = height;
         wapp.hide_title_bar = hide_title_bar;
         wapp.maximize = maximize;
-        wapp.category = category.clone();
+        wapp.category.clone_from(&category);
 
         let exe_path = PathBuf::from(&wapp.path);
         let is_mac_app = wapp.path.ends_with(".app");
