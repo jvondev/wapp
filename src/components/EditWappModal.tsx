@@ -67,7 +67,6 @@ export const EditWappModal: Component = () => {
       <button class="btn-icon" style="border: none;" onClick={onClose}><X size={18} /></button>
     </div>
   );
-
   const IconUploadSection = ({ customIcon, name, fileInput, onIconUpload }: { customIcon: string | undefined; name: string; fileInput: HTMLInputElement | undefined; onIconUpload: (e: Event) => void }) => (
     <div style="display: flex; gap: 1.5rem; align-items: center; background: hsl(var(--muted) / 0.3); padding: 1.25rem; border-radius: 16px; border: 1px solid hsl(var(--border));">
       <div class="wapp-icon-container" style="width: 64px; height: 64px; border-radius: 16px; flex-shrink: 0; box-shadow: none; font-size: 1.5rem;">
@@ -99,25 +98,25 @@ export const EditWappModal: Component = () => {
                 fileInput={fileInput}
                 onIconUpload={handleIconUpload}
               />
-              </div>
+            </form>
 
-              <div class="advanced-field-group">
-                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Application Name</label>
-                <input type="text" class="input-field" value={name()} onInput={(e) => setName(e.currentTarget.value)} required />
-              </div>
-              
-              <div class="advanced-field-group">
-                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Source URL</label>
-                <input type="url" class="input-field" value={url()} onInput={(e) => setUrl(e.currentTarget.value)} required />
-              </div>
+            <div class="advanced-field-group">
+              <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Application Name</label>
+              <input type="text" class="input-field" value={name()} onInput={(e) => setName(e.currentTarget.value)} required />
+            </div>
+            
+            <div class="advanced-field-group">
+              <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Source URL</label>
+              <input type="url" class="input-field" value={url()} onInput={(e) => setUrl(e.currentTarget.value)} required />
+            </div>
 
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                <div class="advanced-field-group">
-                  <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Category</label>
-                  <select class="input-field" value={category()} onChange={(e) => setCategory(e.currentTarget.value)}>
-                    <option value="All">All</option>
-                    <option value="Work">Work</option>
-                    <option value="Enterprise">Enterprise</option>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+              <div class="advanced-field-group">
+                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Category</label>
+                <select class="input-field" value={category()} onChange={(e) => setCategory(e.currentTarget.value)}>
+                  <option value="All">All</option>
+                  <option value="Work">Work</option>
+                  <option value="Enterprise">Enterprise</option>
                   </select>
                 </div>
                 <div class="advanced-field-group">

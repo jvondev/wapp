@@ -78,6 +78,12 @@ export const WappCard: Component<WappCardProps> = (props) => {
     </>
   );
 }
+        <button
+          class="wapp-tile-more"
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            setContextMenu({ x: rect.left, y: rect.bottom + 5 });
           }}
         >
           <MoreHorizontal size={14} />

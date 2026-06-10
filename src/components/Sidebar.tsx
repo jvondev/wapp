@@ -10,8 +10,8 @@ export const SidebarLogo: Component = () => (
 );
 
 interface SidebarNavProps {
-  state: any;
-  actions: any;
+  state: unknown;
+  actions: unknown;
 }
 
 export const SidebarNav: Component<SidebarNavProps> = (props) => (

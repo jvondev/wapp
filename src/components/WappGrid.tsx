@@ -40,6 +40,7 @@ export const WappGrid: Component = () => {
   };
 
   const filteredBuilds = () => {
+  const filteredBuilds = () => {
     const builds = Object.values(state.activeBuilds);
     if (state.filterCategory === "All") return builds;
     return builds.filter(b => b.category === state.filterCategory);

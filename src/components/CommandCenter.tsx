@@ -278,7 +278,7 @@ export const CommandCenter: Component = () => {
     );
   }
 
-  function ShortcutHint() {
+  const ShortcutHint = () => {
     return (
       <div class="kbd-shortcut" style="padding: 0.3rem 0.6rem; border-radius: 8px; background: hsl(var(--muted) / 0.8); border: 1px solid hsl(var(--border) / 0.5); font-size: 0.75rem; color: hsl(var(--muted-foreground));">
         <kbd>⌘</kbd> <kbd>K</kbd>
@@ -286,7 +286,7 @@ export const CommandCenter: Component = () => {
     );
   }
 
-  function UrlActions() {
+  const UrlActions = () => {
     return (
       <div style="display: flex; gap: 0.75rem; align-items: center;">
         <button
