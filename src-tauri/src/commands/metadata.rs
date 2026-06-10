@@ -23,67 +23,72 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
         .text()
         .await
         .map_err(|e| format!("Failed to read response: {}", e))?;
-    let document = Html::parse_document(&html_content);
 
-    let mut icon = None;
+    let (title, icon_raw) = {
+        let document = Html::parse_document(&html_content);
+        let mut icon_found = None;
 
-    let og_title_selector = Selector::parse("meta[property='og:title']").unwrap();
-    let title_selector = Selector::parse("title").unwrap();
+        let og_title_selector = Selector::parse("meta[property='og:title']").unwrap();
+        let title_selector = Selector::parse("title").unwrap();
 
-    let title = document
-        .select(&og_title_selector)
-        .next()
-        .and_then(|m| m.value().attr("content"))
-        .map(|s| s.to_string())
-        .or_else(|| {
-            document
-                .select(&title_selector)
-                .next()
-                .map(|t| t.inner_html())
-        });
+        let title = document
+            .select(&og_title_selector)
+            .next()
+            .and_then(|m| m.value().attr("content"))
+            .map(|s| s.to_string())
+            .or_else(|| {
+                document
+                    .select(&title_selector)
+                    .next()
+                    .map(|t| t.inner_html())
+            });
 
-    let icon_selectors = [
-        "link[rel='apple-touch-icon']",
-        "link[rel='icon']",
-        "link[rel='shortcut icon']",
-        "meta[property='og:image']",
-    ];
-    for selector_str in icon_selectors {
-        let sel = Selector::parse(selector_str).unwrap();
-        if let Some(link) = document.select(&sel).next() {
-            let attr = if selector_str.starts_with("meta") {
-                "content"
-            } else {
-                "href"
-            };
-            if let Some(raw) = link.value().attr(attr) {
-                let mut icon_path = raw.to_string();
-                if icon_path.starts_with("//") {
-                    icon_path = format!("https:{}", icon_path);
-                } else if icon_path.starts_with("/") {
-                    if let Ok(base) = url::Url::parse(&target_url) {
-                        icon_path = format!(
-                            "{}://{}{}",
-                            base.scheme(),
-                            base.host_str().unwrap_or_default(),
-                            icon_path
-                        );
+        let icon_selectors = [
+            "link[rel='apple-touch-icon']",
+            "link[rel='icon']",
+            "link[rel='shortcut icon']",
+            "meta[property='og:image']",
+        ];
+        for selector_str in icon_selectors {
+            let sel = Selector::parse(selector_str).unwrap();
+            if let Some(link) = document.select(&sel).next() {
+                let attr = if selector_str.starts_with("meta") {
+                    "content"
+                } else {
+                    "href"
+                };
+                if let Some(raw) = link.value().attr(attr) {
+                    let mut icon_path = raw.to_string();
+                    if icon_path.starts_with("//") {
+                        icon_path = format!("https:{}", icon_path);
+                    } else if icon_path.starts_with("/") {
+                        if let Ok(base) = url::Url::parse(&target_url) {
+                            icon_path = format!(
+                                "{}://{}{}",
+                                base.scheme(),
+                                base.host_str().unwrap_or_default(),
+                                icon_path
+                            );
+                        }
+                    } else if !icon_path.starts_with("http") {
+                        if let Ok(base) = url::Url::parse(&target_url) {
+                            icon_path = format!(
+                                "{}://{}/{}",
+                                base.scheme(),
+                                base.host_str().unwrap_or_default(),
+                                icon_path
+                            );
+                        }
                     }
-                } else if !icon_path.starts_with("http") {
-                    if let Ok(base) = url::Url::parse(&target_url) {
-                        icon_path = format!(
-                            "{}://{}/{}",
-                            base.scheme(),
-                            base.host_str().unwrap_or_default(),
-                            icon_path
-                        );
-                    }
+                    icon_found = Some(icon_path);
+                    break;
                 }
-                icon = Some(icon_path);
-                break;
             }
         }
-    }
+        (title, icon_found)
+    };
+
+    let mut icon = icon_raw;
 
     if icon.is_none() {
         if let Ok(base) = url::Url::parse(&target_url) {
