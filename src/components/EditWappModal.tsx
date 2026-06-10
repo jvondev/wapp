@@ -2,6 +2,33 @@ import { Component, Show, createSignal, createEffect } from "solid-js";
 import { X, Save, Pencil } from "lucide-solid";
 import { useAppStore } from "../store";
 
+const EditWappHeader: Component<{ onClose: () => void }> = (props) => (
+  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+    <h3 style="font-size: 1.1rem; font-weight: 700; color: hsl(var(--foreground)); display: flex; align-items: center; gap: 0.75rem;">
+      <div style="background: hsl(var(--accent)); padding: 0.5rem; border-radius: 10px; color: hsl(var(--primary));"><Pencil size={20} /></div>
+      Edit Application
+    </h3>
+    <button class="btn-icon" style="border: none;" onClick={props.onClose}><X size={18} /></button>
+  </div>
+);
+
+const IconUploadSection: Component<{ customIcon: string | undefined; name: string; fileInput: HTMLInputElement | undefined; onIconUpload: (e: Event) => void }> = (props) => (
+  <div style="display: flex; gap: 1.5rem; align-items: center; background: hsl(var(--muted) / 0.3); padding: 1.25rem; border-radius: 16px; border: 1px solid hsl(var(--border));">
+    <div class="wapp-icon-container" style="width: 64px; height: 64px; border-radius: 16px; flex-shrink: 0; box-shadow: none; font-size: 1.5rem;">
+      <Show when={props.customIcon} fallback={props.name.charAt(0) || "W"}>
+        <img src={props.customIcon} style="width: 100%; height: 100%; object-fit: contain; padding: 0.6rem;" />
+      </Show>
+    </div>
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
+      <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Visual Identity</span>
+      <button type="button" class="btn-icon" style="font-size: 0.8rem; padding: 0 1rem; background: hsl(var(--background)); width: auto; height: 32px; border-radius: 8px; font-weight: 600;" onClick={() => props.fileInput?.click()}>
+        Change Icon
+      </button>
+      <input ref={props.fileInput} type="file" hidden accept="image/*" onInput={props.onIconUpload} />
+    </div>
+  </div>
+);
+
 export const EditWappModal: Component = () => {
   const [state, actions] = useAppStore();
 
@@ -58,32 +85,6 @@ export const EditWappModal: Component = () => {
     actions.setEditingWapp(null);
   };
 
-  const EditWappHeader = ({ onClose }: { onClose: () => void }) => (
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
-      <h3 style="font-size: 1.1rem; font-weight: 700; color: hsl(var(--foreground)); display: flex; align-items: center; gap: 0.75rem;">
-        <div style="background: hsl(var(--accent)); padding: 0.5rem; border-radius: 10px; color: hsl(var(--primary));"><Pencil size={20} /></div>
-        Edit Application
-      </h3>
-      <button class="btn-icon" style="border: none;" onClick={onClose}><X size={18} /></button>
-    </div>
-  );
-  const IconUploadSection = ({ customIcon, name, fileInput, onIconUpload }: { customIcon: string | undefined; name: string; fileInput: HTMLInputElement | undefined; onIconUpload: (e: Event) => void }) => (
-    <div style="display: flex; gap: 1.5rem; align-items: center; background: hsl(var(--muted) / 0.3); padding: 1.25rem; border-radius: 16px; border: 1px solid hsl(var(--border));">
-      <div class="wapp-icon-container" style="width: 64px; height: 64px; border-radius: 16px; flex-shrink: 0; box-shadow: none; font-size: 1.5rem;">
-        <Show when={customIcon} fallback={name.charAt(0) || "W"}>
-          <img src={customIcon} style="width: 100%; height: 100%; object-fit: contain; padding: 0.6rem;" />
-        </Show>
-      </div>
-      <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
-        <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: hsl(var(--muted-foreground)); letter-spacing: 0.05em;">Visual Identity</span>
-        <button type="button" class="btn-icon" style="font-size: 0.8rem; padding: 0 1rem; background: hsl(var(--background)); width: auto; height: 32px; border-radius: 8px; font-weight: 600;" onClick={() => fileInput?.click()}>
-          Change Icon
-        </button>
-        <input ref={fileInput} type="file" hidden accept="image/*" onInput={onIconUpload} />
-      </div>
-    </div>
-  );
-
   return (
     <Show when={state.editingWapp}>
       <div class="command-center-overlay" onClick={() => actions.setEditingWapp(null)}>
@@ -98,25 +99,24 @@ export const EditWappModal: Component = () => {
                 fileInput={fileInput}
                 onIconUpload={handleIconUpload}
               />
-            </form>
 
-            <div class="advanced-field-group">
-              <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Application Name</label>
-              <input type="text" class="input-field" value={name()} onInput={(e) => setName(e.currentTarget.value)} required />
-            </div>
-            
-            <div class="advanced-field-group">
-              <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Source URL</label>
-              <input type="url" class="input-field" value={url()} onInput={(e) => setUrl(e.currentTarget.value)} required />
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
               <div class="advanced-field-group">
-                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Category</label>
-                <select class="input-field" value={category()} onChange={(e) => setCategory(e.currentTarget.value)}>
-                  <option value="All">All</option>
-                  <option value="Work">Work</option>
-                  <option value="Enterprise">Enterprise</option>
+                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Application Name</label>
+                <input type="text" class="input-field" value={name()} onInput={(e) => setName(e.currentTarget.value)} required />
+              </div>
+
+              <div class="advanced-field-group">
+                <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Source URL</label>
+                <input type="url" class="input-field" value={url()} onInput={(e) => setUrl(e.currentTarget.value)} required />
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="advanced-field-group">
+                  <label style="font-size: 0.65rem; margin-bottom: 0.4rem;">Category</label>
+                  <select class="input-field" value={category()} onChange={(e) => setCategory(e.currentTarget.value)}>
+                    <option value="All">All</option>
+                    <option value="Work">Work</option>
+                    <option value="Enterprise">Enterprise</option>
                   </select>
                 </div>
                 <div class="advanced-field-group">

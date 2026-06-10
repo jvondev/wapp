@@ -10,10 +10,15 @@ export const SkeletonCard: Component = () => (
   </div>
 );
 
+const renderIcon = (icon?: string) => {
+  if (!icon) return null;
+  return <img src={icon} class="wapp-icon-img" />;
+};
+
 const WappTileIcon: Component<{ icon?: string; name: string }> = (props) => (
   <div class="wapp-icon-container">
     <Show when={props.icon} fallback={<div class="wapp-icon-fallback">{props.name.charAt(0)}</div>}>
-      <img src={props.icon!} class="wapp-icon-img" />
+      {renderIcon(props.icon)}
     </Show>
     <div class="wapp-tile-overlay">
       <Play size={24} fill="currentColor" />
@@ -61,23 +66,6 @@ export const WappCard: Component<WappCardProps> = (props) => {
           <WappTileIcon icon={props.wapp.icon} name={props.wapp.name} />
           <WappTileInfo name={props.wapp.name} category={props.wapp.category} />
         </div>
-        <button
-          class="wapp-tile-more"
-          onClick={(e) => {
-            e.stopPropagation();
-            const rect = e.currentTarget.getBoundingClientRect();
-            setContextMenu({ x: rect.left, y: rect.bottom + 5 });
-          }}
-        >
-          <MoreHorizontal />
-        </button>
-        {contextMenu() && (
-          <ContextMenu x={contextMenu()?.x} y={contextMenu()?.y} options={menuOptions} onClose={() => setContextMenu(null)} />
-        )}
-      </div>
-    </>
-  );
-}
         <button
           class="wapp-tile-more"
           onClick={(e) => {

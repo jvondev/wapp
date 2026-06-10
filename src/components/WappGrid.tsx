@@ -40,7 +40,6 @@ export const WappGrid: Component = () => {
   };
 
   const filteredBuilds = () => {
-  const filteredBuilds = () => {
     const builds = Object.values(state.activeBuilds);
     if (state.filterCategory === "All") return builds;
     return builds.filter(b => b.category === state.filterCategory);
@@ -58,17 +57,6 @@ export const WappGrid: Component = () => {
         {/* Skeleton shimmer while fetching */}
         <Show when={state.isLoading}>
           <SkeletonGrid />
-        </Show>
-
-        {/* Actual builds and wapps rendering would follow here */}
-      </div>
-    </>
-  );
-};
-                <SkeletonCard />
-              </div>
-            )}
-          </For>
         </Show>
 
         <Show when={!state.isLoading}>

@@ -3,6 +3,63 @@ import { Plus, Settings, X, Play, Minus, Square, Command } from "lucide-solid";
 import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
 
+const ShortcutHint = () => {
+  return (
+    <div class="kbd-shortcut" style="padding: 0.3rem 0.6rem; border-radius: 8px; background: hsl(var(--muted) / 0.8); border: 1px solid hsl(var(--border) / 0.5); font-size: 0.75rem; color: hsl(var(--muted-foreground));">
+      <kbd>⌘</kbd> <kbd>K</kbd>
+    </div>
+  );
+};
+
+const UrlActions: Component<{ showAdvanced: boolean; setShowAdvanced: (val: boolean) => void; url: string; name: string }> = (props) => {
+  return (
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+      <button
+        type="button"
+        class="btn-icon"
+        style="border: none; background: hsl(var(--accent)); width: 38px; height: 38px; border-radius: 10px;"
+        onClick={() => props.setShowAdvanced(!props.showAdvanced)}
+        title="Advanced Configuration"
+      >
+        <Settings size={20} />
+      </button>
+      <button
+        type="submit"
+        class="btn-primary"
+        style="height: 38px; padding: 0 1.25rem; border-radius: 10px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;"
+        disabled={!props.url || !props.name}
+      >
+        <Plus size={18} />
+        Create
+      </button>
+    </div>
+  );
+};
+
+const CommandBar: Component<{ url: string; onUrlChange: (val: string) => void; handleSubmit: (e: Event) => void; isUrl: boolean; showAdvanced: boolean; setShowAdvanced: (val: boolean) => void; name: string }> = (props) => {
+  return (
+    <div style="position: relative;">
+      <form onSubmit={props.handleSubmit} class="command-bar">
+        <Command size={22} style="color: hsl(var(--muted-foreground))" />
+        <input
+          autofocus
+          type="text"
+          class="command-input"
+          placeholder="Search apps or paste a URL..."
+          value={props.url}
+          onInput={(e) => props.onUrlChange(e.currentTarget.value)}
+        />
+        <Show when={!props.isUrl}>
+          <ShortcutHint />
+        </Show>
+        <Show when={props.isUrl}>
+          <UrlActions showAdvanced={props.showAdvanced} setShowAdvanced={props.setShowAdvanced} url={props.url} name={props.name} />
+        </Show>
+      </form>
+    </div>
+  );
+};
+
 export const CommandCenter: Component = () => {
   const [state, actions] = useAppStore();
 
@@ -214,107 +271,43 @@ export const CommandCenter: Component = () => {
     setName("");
     setIsNameManuallyEdited(false);
     setFaviconUrl("");
-      setCustomIcon(null);
-      setShowPreview(false);
-      setShowAdvanced(false);
-    };
+    setCustomIcon(null);
+    setShowPreview(false);
+    setShowAdvanced(false);
+  };
 
-    onMount(() => {
-      const observer = new ResizeObserver(() => syncPreviewPosition());
-      window.addEventListener("resize", syncPreviewPosition);
+  onMount(() => {
+    const observer = new ResizeObserver(() => syncPreviewPosition());
+    window.addEventListener("resize", syncPreviewPosition);
 
-      const timer = setInterval(() => {
-        if (previewPlaceholder) {
-          observer.observe(previewPlaceholder);
-          clearInterval(timer);
-        }
-      }, 100);
-
-      onCleanup(() => {
-        observer.disconnect();
-        window.removeEventListener("resize", syncPreviewPosition);
+    const timer = setInterval(() => {
+      if (previewPlaceholder) {
+        observer.observe(previewPlaceholder);
         clearInterval(timer);
-        if (debounceTimer) clearTimeout(debounceTimer);
-      });
+      }
+    }, 100);
+
+    onCleanup(() => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncPreviewPosition);
+      clearInterval(timer);
+      if (debounceTimer) clearTimeout(debounceTimer);
     });
+  });
 
-    return (
-      <Show when={state.showAddModal}>
-        <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
-          <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
-            <CommandBar
-              url={url()}
-              onUrlChange={handleUrlChange}
-              handleSubmit={handleSubmit}
-              isUrl={isUrl()}
-            />
-          </div>
-        </div>
-      </Show>
-    );
-  }
-
-  function CommandBar({ url, onUrlChange, handleSubmit, isUrl }) {
-    return (
-      <div style="position: relative;">
-        <form onSubmit={handleSubmit} class="command-bar">
-          <Command size={22} style="color: hsl(var(--muted-foreground))" />
-          <input
-            autofocus
-            type="text"
-            class="command-input"
-            placeholder="Search apps or paste a URL..."
-            value={url}
-            onInput={(e) => onUrlChange(e.currentTarget.value)}
+  return (
+    <Show when={state.showAddModal}>
+      <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
+        <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
+          <CommandBar
+            url={url()}
+            onUrlChange={handleUrlChange}
+            handleSubmit={handleSubmit}
+            isUrl={isUrl()}
+            showAdvanced={showAdvanced()}
+            setShowAdvanced={setShowAdvanced}
+            name={name()}
           />
-          <Show when={!isUrl}>
-            <ShortcutHint />
-          </Show>
-          <Show when={isUrl}>
-            <UrlActions />
-          </Show>
-        </form>
-      </div>
-    );
-  }
-
-  const ShortcutHint = () => {
-    return (
-      <div class="kbd-shortcut" style="padding: 0.3rem 0.6rem; border-radius: 8px; background: hsl(var(--muted) / 0.8); border: 1px solid hsl(var(--border) / 0.5); font-size: 0.75rem; color: hsl(var(--muted-foreground));">
-        <kbd>⌘</kbd> <kbd>K</kbd>
-      </div>
-    );
-  }
-
-  const UrlActions = () => {
-    return (
-      <div style="display: flex; gap: 0.75rem; align-items: center;">
-        <button
-          type="button"
-          class="btn-icon"
-          style="border: none; background: hsl(var(--accent)); width: 38px; height: 38px; border-radius: 10px;"
-        />
-      </div>
-    );
-  }
-                    onClick={() => setShowAdvanced(!showAdvanced())}
-                    title="Advanced Configuration"
-                  >
-                    <Settings size={20} />
-                  </button>
-                  <button
-                    type="submit"
-                    class="btn-primary"
-                    style="height: 38px; padding: 0 1.25rem; border-radius: 10px; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem;"
-                    disabled={!url() || !name()}
-                  >
-                    <Plus size={18} />
-                    Create
-                  </button>
-                </div>
-              </Show>
-            </form>
-          </div>
 
           <div class="command-center-content transition-group">
             <Show when={showAdvanced()}>
