@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
 pub fn get_workspace_dir(app_handle: &AppHandle) -> PathBuf {
