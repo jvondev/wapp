@@ -10,29 +10,6 @@ export const SkeletonCard: Component = () => (
   </div>
 );
 
-const renderIcon = (icon?: string) => {
-  if (!icon) return null;
-  return <img src={icon} class="wapp-icon-img" />;
-};
-
-const WappTileIcon: Component<{ icon?: string; name: string }> = (props) => (
-  <div class="wapp-icon-container">
-    <Show when={props.icon} fallback={<div class="wapp-icon-fallback">{props.name.charAt(0)}</div>}>
-      {renderIcon(props.icon)}
-    </Show>
-    <div class="wapp-tile-overlay">
-      <Play size={24} fill="currentColor" />
-    </div>
-  </div>
-);
-
-const WappTileInfo: Component<{ name: string; category: string }> = (props) => (
-  <div class="wapp-tile-info">
-    <span class="wapp-tile-name">{props.name}</span>
-    <span class="wapp-tile-category">{props.category}</span>
-  </div>
-);
-
 interface WappCardProps {
   wapp: WappConfig;
   onLaunch: (path: string) => void;
@@ -63,8 +40,18 @@ export const WappCard: Component<WappCardProps> = (props) => {
         onContextMenu={handleContextMenu}
       >
         <div class="wapp-tile">
-          <WappTileIcon icon={props.wapp.icon} name={props.wapp.name} />
-          <WappTileInfo name={props.wapp.name} category={props.wapp.category} />
+          <div class="wapp-icon-container">
+            <Show when={props.wapp.icon} fallback={<div class="wapp-icon-fallback">{props.wapp.name.charAt(0)}</div>}>
+              <img src={props.wapp.icon ?? undefined} class="wapp-icon-img" />
+            </Show>
+            <div class="wapp-tile-overlay">
+              <Play size={24} fill="currentColor" />
+            </div>
+          </div>
+          <div class="wapp-tile-info">
+            <span class="wapp-tile-name">{props.wapp.name}</span>
+            <span class="wapp-tile-category">{props.wapp.category}</span>
+          </div>
         </div>
         <button
           class="wapp-tile-more"

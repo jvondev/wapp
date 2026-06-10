@@ -13,15 +13,15 @@
   font-weight: 800;
 }
 
-.nav .nav-item:hover {
-  background-color: hsl(var(--accent) / 0.5);
-  color: hsl(var(--foreground));
+.nav-item:hover {
+  background-color: hsl(var(--accent) / 0.5) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
-.nav .nav-item.active {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--foreground));
-  font-weight: 600;
+.nav-item.active {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600 !important;
 }
 
 .filter-btn {
@@ -225,7 +225,7 @@
   justify-content: center;
   padding-top: 15vh;
   z-index: 100;
-  animation: fade-in 0.3s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .command-center-container {
@@ -234,7 +234,7 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .command-bar {
@@ -327,7 +327,7 @@
   border-radius: 18px;
   padding: 1rem 1.25rem;
   box-shadow: var(--shadow-lg);
-  animation: slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Advanced Card refinement */
@@ -362,7 +362,7 @@
   padding: 0.5rem;
   min-width: 180px;
   box-shadow: var(--shadow-lg);
-  animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .context-menu-item {
@@ -386,11 +386,11 @@
 }
 
 .context-menu-item.danger {
-  color: hsl(var(--destructive));
+  color: #ef4444;
 }
 
 .context-menu-item.danger:hover {
-  background: color-mix(in srgb, hsl(var(--destructive)) 10%, transparent);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 /* Onboarding / Empty State Centering */

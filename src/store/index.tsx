@@ -152,7 +152,8 @@ function createAppStore() {
       } catch (err) {
         actions.addNotification(`Failed to save: ${err}`, "error");
       }
-    }
+    },
+    setWapps: (wapps: WappConfig[]) => setState("wapps", wapps),
   };
 
   // Listeners

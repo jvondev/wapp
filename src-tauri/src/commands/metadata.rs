@@ -25,23 +25,22 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
         .map_err(|e| format!("Failed to read response: {}", e))?;
     let document = Html::parse_document(&html_content);
 
-    let mut title = None;
     let mut icon = None;
 
     let og_title_selector = Selector::parse("meta[property='og:title']").unwrap();
     let title_selector = Selector::parse("title").unwrap();
 
-    title = document
+    let title = document
         .select(&og_title_selector)
         .next()
         .and_then(|m| m.value().attr("content"))
-        .map(|s| s.to_string());
-    if title.is_none() {
-        title = document
-            .select(&title_selector)
-            .next()
-            .map(|t| t.inner_html());
-    }
+        .map(|s| s.to_string())
+        .or_else(|| {
+            document
+                .select(&title_selector)
+                .next()
+                .map(|t| t.inner_html())
+        });
 
     let icon_selectors = [
         "link[rel='apple-touch-icon']",
@@ -96,7 +95,7 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
         }
     }
 
-    if let Some(icon_url) = icon {
+    if let Some(ref icon_url) = icon {
         if let Ok(icon_res) = reqwest::Client::new()
             .get(&icon_url)
             .header(reqwest::header::USER_AGENT, MODERN_USER_AGENT)

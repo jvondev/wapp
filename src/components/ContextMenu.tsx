@@ -1,4 +1,4 @@
-import { Component, For, onMount, onCleanup, createEffect } from "solid-js";
+import { Component, For, onMount, onCleanup, JSX } from "solid-js";
 
 interface ContextMenuProps {
   x: number;
@@ -6,7 +6,7 @@ interface ContextMenuProps {
   onClose: () => void;
   options: {
     label: string;
-    icon: JSX.Element;
+    icon: (props: any) => JSX.Element;
     onClick: () => void;
     variant?: "default" | "danger";
   }[];
@@ -23,13 +23,6 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
 
   onMount(() => {
     document.addEventListener("mousedown", handleClickOutside);
-  });
-
-  onCleanup(() => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  });
-
-  createEffect(() => {
     // Adjust position if it goes off screen
     if (menuRef) {
       const rect = menuRef.getBoundingClientRect();
@@ -43,6 +36,10 @@ export const ContextMenu: Component<ContextMenuProps> = (props) => {
         menuRef.style.top = `${screenHeight - rect.height - 10}px`;
       }
     }
+  });
+
+  onCleanup(() => {
+    document.removeEventListener("mousedown", handleClickOutside);
   });
 
   return (

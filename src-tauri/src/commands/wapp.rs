@@ -1,8 +1,7 @@
 use crate::models::{BuildProgress, WappConfig};
 use crate::utils::{get_config_file_path, get_workspace_dir};
-use base64::{engine::general_purpose, Engine as _};
-use serde::Deserialize;
 use image::DynamicImage;
+use base64::{engine::general_purpose, Engine as _};
 use std::fs::{self, File};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -183,7 +182,7 @@ pub fn build_wapp(
     icon: Option<String>,
     width: u32,
     height: u32,
-    #[serde(rename = "hideTitleBar")] hide_title_bar: bool,
+    hide_title_bar: bool,
     category: String,
     created_at: String,
     maximize: bool,
@@ -440,7 +439,6 @@ pub fn delete_wapp(app_handle: AppHandle, id: String) -> Result<(), String> {
         let path = Path::new(&wapp.path);
 
         // app_folder is the parent of the fmt subdir
-        let is_mac_app = path.to_string_lossy().ends_with(".app");
         let app_folder = path
             .parent()
             .and_then(|p| p.parent())
@@ -476,14 +474,14 @@ pub fn edit_wapp(
 
     if let Some(pos) = current_wapps.iter().position(|w| w.id == id) {
         let mut wapp = current_wapps[pos].clone();
-        wapp.name.clone_from(&name);
-        wapp.url.clone_from(&url);
-        wapp.icon.clone_from(&icon);
+        wapp.name = name.clone();
+        wapp.url = url.clone();
+        wapp.icon = icon.clone();
         wapp.width = width;
         wapp.height = height;
         wapp.hide_title_bar = hide_title_bar;
         wapp.maximize = maximize;
-        wapp.category.clone_from(&category);
+        wapp.category = category.clone();
 
         let exe_path = PathBuf::from(&wapp.path);
         let is_mac_app = wapp.path.ends_with(".app");

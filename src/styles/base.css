@@ -86,12 +86,12 @@ body {
 }
 
 /* Fluid Animations */
-@keyframes fade-in {
+@keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes slide-up-fade {
+@keyframes slideUpFade {
   from {
     opacity: 0;
     transform: translateY(16px);
@@ -102,7 +102,7 @@ body {
   }
 }
 
-@keyframes modal-enter {
+@keyframes modalEnter {
   from {
     opacity: 0;
     transform: scale(0.98) translateY(20px);
@@ -115,7 +115,7 @@ body {
   }
 }
 
-@keyframes slide-in-right {
+@keyframes slideInRight {
   from {
     opacity: 0;
     transform: translateX(20px);
@@ -126,7 +126,7 @@ body {
   }
 }
 
-@keyframes scale-in {
+@keyframes scaleIn {
   from {
     opacity: 0;
     transform: scale(0.95);
@@ -148,7 +148,7 @@ body {
 
 /* Premium Utilities */
 .stagger-item {
-  animation: slide-up-fade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .glass-surface {
