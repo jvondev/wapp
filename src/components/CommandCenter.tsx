@@ -37,7 +37,7 @@ export const CommandCenter: Component = () => {
   const [targetOs, setTargetOs] = createSignal<string[]>(defaultOs);
 
   const toggleOs = (os: string) => {
-    let current = targetOs();
+    const current = targetOs();
     let next = current.includes(os) ? current.filter(o => o !== os) : [...current, os];
     if (next.length === 0) next = [os];
     setTargetOs(next);
@@ -126,7 +126,7 @@ export const CommandCenter: Component = () => {
       const info = await tauriService.getSiteInfo(urlVal);
       if (info.icon) setFaviconUrl(info.icon);
       if (info.title && !isNameManuallyEdited()) {
-        let cleanTitle = info.title.split(/ - | \| |: /)[0].trim();
+        const cleanTitle = info.title.split(/ - | \| |: /)[0].trim();
         setName(cleanTitle);
       }
       setShowPreview(true);
@@ -157,28 +157,43 @@ export const CommandCenter: Component = () => {
     }
   };
 
-  const autoFillName = () => {
+  function autoFillName() {
     if (isNameManuallyEdited()) return;
     let urlVal = url().trim();
-    if (!urlVal || !urlVal.includes(".")) return;
+    if (!urlVal.includes(".")) return;
     if (!urlVal.startsWith("http://") && !urlVal.startsWith("https://")) {
-      urlVal = "https://" + urlVal;
+      urlVal = `https://${urlVal}`;
     }
     try {
       const parsed = new URL(urlVal);
       const parts = parsed.hostname.replace("www.", "").split(".");
       if (parts.length >= 2) {
-        let brand = parts[parts.length - 2];
-        brand = brand.charAt(0).toUpperCase() + brand.slice(1);
+        const rawBrand = parts[parts.length - 2];
+        const brand = `${rawBrand.charAt(0).toUpperCase()}${rawBrand.slice(1)}`;
         if (parts.length > 2) {
           const sub = parts[0].toLowerCase();
-          const commonAppSubs = ["app", "web", "my", "dashboard", "console", "portal", "cloud"];
-          if (commonAppSubs.includes(sub)) setName(`${brand} App`);
-          else setName(`${sub.charAt(0).toUpperCase() + sub.slice(1)} ${brand}`);
-        } else setName(brand);
+          const suffixMap: Record<string, string> = {
+            app: "App",
+            web: "App",
+            my: "App",
+            dashboard: "App",
+            console: "App",
+            portal: "App",
+            cloud: "App"
+          };
+          const suffix = suffixMap[sub];
+          const nameResult = suffix
+            ? `${brand} ${suffix}`
+            : `${sub.charAt(0).toUpperCase()}${sub.slice(1)} ${brand}`;
+          setName(nameResult);
+        } else {
+          setName(brand);
+        }
       }
-    } catch (_) { }
-  };
+    } catch (_) {
+      // empty
+    }
+  }
 
   const handleSubmit = (e: Event) => {
     e.preventDefault();
@@ -199,57 +214,89 @@ export const CommandCenter: Component = () => {
     setName("");
     setIsNameManuallyEdited(false);
     setFaviconUrl("");
-    setCustomIcon(null);
-    setShowPreview(false);
-    setShowAdvanced(false);
-  };
+      setCustomIcon(null);
+      setShowPreview(false);
+      setShowAdvanced(false);
+    };
 
-  onMount(() => {
-    const observer = new ResizeObserver(() => syncPreviewPosition());
-    window.addEventListener("resize", syncPreviewPosition);
+    onMount(() => {
+      const observer = new ResizeObserver(() => syncPreviewPosition());
+      window.addEventListener("resize", syncPreviewPosition);
 
-    const timer = setInterval(() => {
-      if (previewPlaceholder) {
-        observer.observe(previewPlaceholder);
+      const timer = setInterval(() => {
+        if (previewPlaceholder) {
+          observer.observe(previewPlaceholder);
+          clearInterval(timer);
+        }
+      }, 100);
+
+      onCleanup(() => {
+        observer.disconnect();
+        window.removeEventListener("resize", syncPreviewPosition);
         clearInterval(timer);
-      }
-    }, 100);
-
-    onCleanup(() => {
-      observer.disconnect();
-      window.removeEventListener("resize", syncPreviewPosition);
-      clearInterval(timer);
-      if (debounceTimer) clearTimeout(debounceTimer);
+        if (debounceTimer) clearTimeout(debounceTimer);
+      });
     });
-  });
 
-  return (
-    <Show when={state.showAddModal}>
-      <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
-        <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
+    return (
+      <Show when={state.showAddModal}>
+        <div class="command-center-overlay" onClick={() => actions.setShowAddModal(false)}>
+          <div class="command-center-container" onClick={(e) => e.stopPropagation()}>
+            <CommandBar
+              url={url()}
+              onUrlChange={handleUrlChange}
+              handleSubmit={handleSubmit}
+              isUrl={isUrl()}
+            />
+          </div>
+        </div>
+      </Show>
+    );
+  }
 
-          <div style="position: relative;">
-            <form onSubmit={handleSubmit} class="command-bar">
-              <Command size={22} style="color: hsl(var(--muted-foreground))" />
-              <input
-                autofocus
-                type="text"
-                class="command-input"
-                placeholder="Search apps or paste a URL..."
-                value={url()}
-                onInput={(e) => handleUrlChange(e.currentTarget.value)}
-              />
-              <Show when={!isUrl()}>
-                <div class="kbd-shortcut" style="padding: 0.3rem 0.6rem; border-radius: 8px; background: hsl(var(--muted) / 0.8); border: 1px solid hsl(var(--border) / 0.5); font-size: 0.75rem; color: hsl(var(--muted-foreground));">
-                  <kbd>⌘</kbd> <kbd>K</kbd>
-                </div>
-              </Show>
-              <Show when={isUrl()}>
-                <div style="display: flex; gap: 0.75rem; align-items: center;">
-                  <button
-                    type="button"
-                    class="btn-icon"
-                    style="border: none; background: hsl(var(--accent)); width: 38px; height: 38px; border-radius: 10px;"
+  function CommandBar({ url, onUrlChange, handleSubmit, isUrl }) {
+    return (
+      <div style="position: relative;">
+        <form onSubmit={handleSubmit} class="command-bar">
+          <Command size={22} style="color: hsl(var(--muted-foreground))" />
+          <input
+            autofocus
+            type="text"
+            class="command-input"
+            placeholder="Search apps or paste a URL..."
+            value={url}
+            onInput={(e) => onUrlChange(e.currentTarget.value)}
+          />
+          <Show when={!isUrl}>
+            <ShortcutHint />
+          </Show>
+          <Show when={isUrl}>
+            <UrlActions />
+          </Show>
+        </form>
+      </div>
+    );
+  }
+
+  function ShortcutHint() {
+    return (
+      <div class="kbd-shortcut" style="padding: 0.3rem 0.6rem; border-radius: 8px; background: hsl(var(--muted) / 0.8); border: 1px solid hsl(var(--border) / 0.5); font-size: 0.75rem; color: hsl(var(--muted-foreground));">
+        <kbd>⌘</kbd> <kbd>K</kbd>
+      </div>
+    );
+  }
+
+  function UrlActions() {
+    return (
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <button
+          type="button"
+          class="btn-icon"
+          style="border: none; background: hsl(var(--accent)); width: 38px; height: 38px; border-radius: 10px;"
+        />
+      </div>
+    );
+  }
                     onClick={() => setShowAdvanced(!showAdvanced())}
                     title="Advanced Configuration"
                   >

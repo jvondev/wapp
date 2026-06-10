@@ -6,7 +6,7 @@ interface ContextMenuProps {
   onClose: () => void;
   options: {
     label: string;
-    icon: any;
+    icon: JSX.Element;
     onClick: () => void;
     variant?: "default" | "danger";
   }[];

@@ -3,6 +3,34 @@ import { WappCard, LoadingCard, SkeletonCard } from "./WappCard";
 import { useAppStore } from "../store";
 import { tauriService } from "../services/tauri";
 
+type FilterBarProps = { filterCategory: string; setFilterCategory: (cat: string) => void };
+const FilterBar: Component<FilterBarProps> = (props) => (
+  <div class="workspace-filters" style="background: hsl(var(--muted) / 0.5); padding: 0.25rem; border-radius: 10px; border: 1px solid hsl(var(--border));">
+    <For each={["All", "Work", "Enterprise"]}>
+      {(cat) => (
+        <button
+          class="filter-btn"
+          classList={{ active: props.filterCategory === cat }}
+          onClick={() => props.setFilterCategory(cat)}
+          style="padding: 0.4rem 1rem; border-radius: 7px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);"
+        >
+          {cat}
+        </button>
+      )}
+    </For>
+  </div>
+);
+
+const SkeletonGrid: Component = () => (
+  <For each={Array(6).fill(null)}>
+    {(_, i) => (
+      <div class="stagger-item" style={`animation-delay: ${0.1 + i() * 0.08}s`}>
+        <SkeletonCard />
+      </div>
+    )}
+  </For>
+);
+
 export const WappGrid: Component = () => {
   const [state, actions] = useAppStore();
 
@@ -21,29 +49,21 @@ export const WappGrid: Component = () => {
     <>
       <Show when={state.wapps.length > 0 || Object.keys(state.activeBuilds).length > 0 || state.isLoading}>
         <div class="workspace-header stagger-item" style="animation-delay: 0.05s">
-          <div class="workspace-filters" style="background: hsl(var(--muted) / 0.5); padding: 0.25rem; border-radius: 10px; border: 1px solid hsl(var(--border));">
-            <For each={["All", "Work", "Enterprise"]}>
-              {(cat) => (
-                <button
-                  class="filter-btn"
-                  classList={{ active: state.filterCategory === cat }}
-                  onClick={() => actions.setFilterCategory(cat)}
-                  style="padding: 0.4rem 1rem; border-radius: 7px; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);"
-                >
-                  {cat}
-                </button>
-              )}
-            </For>
-          </div>
+          <FilterBar filterCategory={state.filterCategory} setFilterCategory={actions.setFilterCategory} />
         </div>
       </Show>
 
       <div class="wapp-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 2rem; padding: 1rem 0;">
         {/* Skeleton shimmer while fetching */}
         <Show when={state.isLoading}>
-          <For each={Array(6).fill(null)}>
-            {(_, i) => (
-              <div class="stagger-item" style={`animation-delay: ${0.1 + i() * 0.08}s`}>
+          <SkeletonGrid />
+        </Show>
+
+        {/* Actual builds and wapps rendering would follow here */}
+      </div>
+    </>
+  );
+};
                 <SkeletonCard />
               </div>
             )}

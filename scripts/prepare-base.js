@@ -20,7 +20,7 @@ console.log('🏗️  Preparing LOCAL wapp-base...');
 // 1. Sync version with root package.json
 try {
   const rootPkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  const targetVersion = rootPkg.devDependencies['@jvondev/wapp-base']?.replace(/[\^~]/, '');
+  const targetVersion = rootPkg.devDependencies['@jvondev/wapp-base']?.replace(/^[\^~]/, '');
   
   if (targetVersion) {
     const cargoPath = path.join('wapp-base', 'src-tauri', 'Cargo.toml');
