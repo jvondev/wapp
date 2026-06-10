@@ -1,7 +1,7 @@
 use crate::models::{BuildProgress, WappConfig};
 use crate::utils::{get_config_file_path, get_workspace_dir};
-use image::DynamicImage;
 use base64::{engine::general_purpose, Engine as _};
+use image::DynamicImage;
 use std::fs::{self, File};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
