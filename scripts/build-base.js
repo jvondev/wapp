@@ -10,7 +10,12 @@ import path from 'path';
  */
 
 const isWindows = process.platform === 'win32';
-const binName = isWindows ? 'wapp-base.exe' : 'wapp-base';
+const isMac = process.platform === 'darwin';
+
+// Final name in node_modules (as sidecar)
+const sidecarName = isWindows ? 'wapp-base.exe' : (isMac ? 'wapp-base-mac' : 'wapp-base-linux');
+// Original name from cargo build
+const cargoBinName = isWindows ? 'wapp-base.exe' : 'wapp-base';
 
 // 1. Ensure icons exist for the build (Rust needs them)
 console.log('📦 Syncing icons...');
@@ -35,14 +40,14 @@ if (cargo.status !== 0) {
 // 3. Inject the binary into the main app's search path
 // We put it in node_modules so tauri.conf.json picks it up automatically
 console.log('🚀 Injecting local build...');
-const targetBin = path.join('wapp-base', 'src-tauri', 'target', 'release', binName);
+const targetBin = path.join('wapp-base', 'src-tauri', 'target', 'release', cargoBinName);
 const nodeModulesBinDir = path.join('node_modules', '@jvondev', 'wapp-base', 'bin');
 
 if (!fs.existsSync(nodeModulesBinDir)) {
   fs.mkdirSync(nodeModulesBinDir, { recursive: true });
 }
 
-fs.copyFileSync(targetBin, path.join(nodeModulesBinDir, binName));
+fs.copyFileSync(targetBin, path.join(nodeModulesBinDir, sidecarName));
 
 console.log('✅ DONE! Your local wapp-base is now active.');
 console.log('👉 Run "npm run dev" to test.');

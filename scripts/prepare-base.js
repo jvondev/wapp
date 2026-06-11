@@ -8,7 +8,17 @@ import path from 'path';
  */
 
 const isWindows = process.platform === 'win32';
-const binName = isWindows ? 'wapp-base.exe' : 'wapp-base';
+const isMac = process.platform === 'darwin';
+
+// Final name in src-tauri/bin (as sidecar)
+const sidecarName = isWindows ? 'wapp-base.exe' : (isMac ? 'wapp-base-mac' : 'wapp-base-linux');
+// Original name from cargo build
+const cargoBinName = isWindows ? 'wapp-base.exe' : 'wapp-base';
+
+if (process.env.CI) {
+  console.log('⏭️  Skipping local wapp-base build in CI.');
+  process.exit(0);
+}
 
 if (process.env.CI) {
   console.log('⏭️  Skipping local wapp-base build in CI.');
@@ -48,10 +58,14 @@ if (!fs.existsSync(iconDest)) fs.mkdirSync(iconDest, { recursive: true });
 fs.cpSync(iconSource, iconDest, { recursive: true });
 
 // 3. Build local Rust
-console.log('🔨 Starting Rust compilation...');
+const isDebug = process.argv.includes('--debug');
+const profile = isDebug ? 'debug' : 'release';
+const buildFlag = isDebug ? [] : ['--release'];
+
+console.log(`🔨 Starting Rust compilation (${profile})...`);
 console.log('\x1b[90m(Note: The first build may take a few minutes. Subsequent builds will be nearly instant.)\x1b[0m');
 
-const cargo = spawnSync('cargo', ['build', '--release'], { 
+const cargo = spawnSync('cargo', ['build', ...buildFlag], {
   cwd: path.join('wapp-base', 'src-tauri'),
   stdio: 'inherit',
   shell: true 
@@ -63,9 +77,9 @@ if (cargo.status !== 0) {
 }
 
 // 4. Copy to proxy bin folder
-const source = path.join('wapp-base', 'src-tauri', 'target', 'release', binName);
+const source = path.join('wapp-base', 'src-tauri', 'target', profile, cargoBinName);
 const destDir = path.join('src-tauri', 'bin');
 if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
 
-fs.copyFileSync(source, path.join(destDir, binName));
-console.log(`✅ Local binary ready in: ${destDir}`);
+fs.copyFileSync(source, path.join(destDir, sidecarName));
+console.log(`✅ Local binary ready in: ${destDir}/${sidecarName}`);

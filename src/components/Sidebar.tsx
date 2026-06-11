@@ -9,14 +9,17 @@ const SidebarLogo = () => (
   </div>
 );
 
-const ProTip = () => (
-  <div class="sidebar-footer">
-    <div class="pro-tip-box">
-      <p class="pro-tip-title">Pro Tip</p>
-      <p class="pro-tip-text">Press <kbd class="kbd-hint">⌘ K</kbd> to quickly create a new wapp.</p>
+const ProTip = () => {
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  return (
+    <div class="sidebar-footer">
+      <div class="pro-tip-box">
+        <p class="pro-tip-title">Pro Tip</p>
+        <p class="pro-tip-text">Press <kbd class="kbd-hint">{isMac ? '⌘ K' : 'Ctrl + K'}</kbd> to quickly create a new wapp.</p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const Sidebar: Component = () => {
   const [state, actions] = useAppStore();
