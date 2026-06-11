@@ -161,7 +161,6 @@ const createAppStore = () => {
         await actions.loadWapps();
       } catch (err) {
         actions.addNotification(`Failed to save: ${err}`, "error");
-        throw err;
       }
     },
     setWapps: (wapps: WappConfig[]) => setState("wapps", wapps),

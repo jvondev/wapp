@@ -39,7 +39,7 @@ export const WappGrid: Component = () => {
         </div>
       </Show>
 
-      <div class="wapp-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 2rem; padding: 1rem 0;">
+      <div class="wapp-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1.5rem; padding: 1rem 0;">
         {/* Skeleton shimmer while fetching */}
         <Show when={state.isLoading}>
           <For each={Array(6).fill(null)}>

@@ -36,6 +36,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+      - name: Create sidecar dummies
+        run: |
+          mkdir -p src-tauri/bin src-tauri/base-bin
+          touch src-tauri/bin/placeholder src-tauri/base-bin/placeholder
       - run: cargo clippy --all-targets --all-features -- -D warnings
         working-directory: src-tauri
   tauri-check:
@@ -56,6 +60,10 @@ jobs:
             libssl-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev
       - uses: dtolnay/rust-toolchain@stable
+      - name: Create sidecar dummies for build
+        run: |
+          mkdir -p src-tauri/bin src-tauri/base-bin
+          touch src-tauri/bin/placeholder src-tauri/base-bin/placeholder
       - run: npm run build:app
         env:
           TAURI_ENV_PLATFORM: linux

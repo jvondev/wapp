@@ -56,10 +56,8 @@ export const EditWappModal: Component = () => {
         maximize: maximize(),
       }, customIcon());
 
-      // Only close modal if editWapp succeeded (didn't throw)
       actions.setEditingWapp(null);
     } catch (err) {
-      // Error is already logged and displayed by actions.editWapp
       console.error("Failed to edit wapp:", err);
     }
   };

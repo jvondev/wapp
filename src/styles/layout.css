@@ -1,19 +1,19 @@
 /* Structural layout components */
 
 .sidebar {
-  width: 260px;
+  width: 240px;
   background-color: hsl(var(--bg-surface));
   border-right: 1px solid hsl(var(--border));
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 2rem 1rem;
+  padding: 1.5rem 1rem;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10;
 }
 
 .sidebar-logo-container {
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.5rem;
   padding: 0 0.5rem;
   display: flex;
   align-items: center;
@@ -40,7 +40,7 @@
 }
 
 .sidebar-btn-primary {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   height: 42px;
   border-radius: 12px;
   background: hsl(var(--primary));
@@ -152,7 +152,7 @@
 }
 
 .header {
-  height: 64px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -166,7 +166,7 @@
 
 .content {
   flex: 1;
-  padding: 2rem;
+  padding: 1.5rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;

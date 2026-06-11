@@ -33,7 +33,7 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "bin/.gitkeep",
+      "bin/*",
       "base-bin/*"
     ]
   }
