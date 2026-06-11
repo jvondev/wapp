@@ -75,11 +75,10 @@ function checkVersions() {
   } catch (e) {}
 }
 
-// 2. Cleanup
-if (fs.existsSync(destDir)) {
-    fs.rmSync(destDir, { recursive: true, force: true });
+// 2. Base binary setup
+if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true });
 }
-fs.mkdirSync(destDir, { recursive: true });
 
 // 3. Selection & Parallel Execution
 let tauriProcess = null;
@@ -118,14 +117,16 @@ if (isLocalMode) {
   const hasCargo = spawnSync('cargo', ['--version']).status === 0;
   if (!hasCargo) {
     console.error('\x1b[31m❌ Error: Local source found but "cargo" is not installed.\x1b[0m');
-    console.log('Either install Rust (https://rustup.rs/) or run with --cloud to use pre-built binaries.');
+    console.log('Either install Rust (https://rustup.rs/) or run with --npm to use pre-built binaries.');
     process.exit(1);
   }
 
   checkVersions();
 
   const localBinPath = path.join(destDir, binName);
-  if (!fs.existsSync(localBinPath)) {
+  const shouldBuild = !fs.existsSync(localBinPath);
+
+  if (shouldBuild) {
     console.log('🔨 Performing initial wapp-base build...');
     console.log('\x1b[90m(Note: Using debug build for speed. First build takes time, subsequent starts are instant.)\x1b[0m');
     const prep = spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
@@ -142,39 +143,55 @@ if (isLocalMode) {
 
   // Watch for changes in wapp-base for "Auto-Refresh"
   if (!isBuild) {
-    const watchDir = path.join('wapp-base', 'src-tauri', 'src');
+    const watchDir = path.join('wapp-base', 'src-tauri');
     console.log(`👀 Watching for changes in ${watchDir}...`);
 
     let debounceTimer = null;
-    fs.watch(watchDir, { recursive: true }, (event, filename) => {
-        // Only trigger rebuild for Rust files or Cargo.toml
-        if (filename && (filename.endsWith('.rs') || filename.endsWith('Cargo.toml'))) {
-            if (debounceTimer) clearTimeout(debounceTimer);
+    try {
+      fs.watch(watchDir, { recursive: true }, (event, filename) => {
+          // Only trigger rebuild for Rust files or Cargo.toml
+          if (filename && (filename.endsWith('.rs') || filename.endsWith('Cargo.toml'))) {
+              if (debounceTimer) clearTimeout(debounceTimer);
 
-            debounceTimer = setTimeout(() => {
-                console.log(`\n📝 Change detected: ${filename}. Rebuilding wapp-base...`);
+              debounceTimer = setTimeout(() => {
+                  console.log(`\n📝 Change detected: ${filename}. Rebuilding wapp-base...`);
 
-                // Show a clear visual separator in the logs
-                console.log('--------------------------------------------------');
-                const rebuild = spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
-                console.log('--------------------------------------------------');
+                  // Show a clear visual separator in the logs
+                  console.log('--------------------------------------------------');
+                  const rebuild = spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
+                  console.log('--------------------------------------------------');
 
-                if (rebuild.status === 0) {
-                    console.log('✅ Rebuild successful. Restarting app...');
-                    startTauri();
-                } else {
-                    console.error('❌ Rebuild failed. Fix the errors above to resume.');
-                }
-            }, 500); // Faster debounce for snappier DX
-        }
-    });
+                  if (rebuild.status === 0) {
+                      console.log('✅ Rebuild successful. Restarting app...');
+                      startTauri();
+                  } else {
+                      console.error('❌ Rebuild failed. Fix the errors above to resume.');
+                  }
+              }, 500); // Faster debounce for snappier DX
+          }
+      });
+    } catch (e) {
+      console.warn(`⚠️  Recursive watch failed: ${e.message}`);
+      console.log('Falling back to non-recursive watch (Cargo.toml changes only). Please check your OS limits.');
+      // Basic fallback for non-recursive systems
+      fs.watch(watchDir, (event, filename) => {
+          if (filename === 'Cargo.toml') {
+            // Trigger rebuild for Cargo.toml only in root
+             console.log(`\n📝 Root config change: ${filename}. Rebuilding...`);
+             spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
+             startTauri();
+          }
+      });
+    }
   }
 } else {
-  const actualNpmPath = fs.existsSync(npmPkgPath) ? npmPkgPath : npmPkgPathFallback;
+  let actualNpmPath = fs.existsSync(npmPkgPath) ? npmPkgPath : npmPkgPathFallback;
 
   if (!fs.existsSync(actualNpmPath)) {
     console.log('⚠️  NPM binaries missing. Running "npm install"...');
     spawnSync('npm', ['install'], { stdio: 'inherit', shell: true });
+    // Re-compute path after install
+    actualNpmPath = fs.existsSync(npmPkgPath) ? npmPkgPath : npmPkgPathFallback;
   }
   
   if (fs.existsSync(actualNpmPath)) {
