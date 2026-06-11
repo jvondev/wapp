@@ -28,7 +28,22 @@ export const WappCard: Component<WappCardProps> = (props) => {
   const menuOptions = [
     { label: "Launch App", icon: Play, onClick: () => props.onLaunch(props.wapp.path) },
     { label: "Edit Config", icon: Edit2, onClick: () => props.onEdit(props.wapp) },
-    { label: "View Source", icon: ExternalLink, onClick: () => window.open(props.wapp.url, '_blank', 'noopener,noreferrer') },
+    {
+      label: "View Source",
+      icon: ExternalLink,
+      onClick: () => {
+        const url = props.wapp.url;
+        const normalized = url.includes("://") ? url : `https://${url}`;
+        try {
+          const parsed = new URL(normalized);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            window.open(normalized, '_blank', 'noopener,noreferrer');
+          }
+        } catch (e) {
+          console.error("Invalid URL:", normalized);
+        }
+      }
+    },
     { label: "Delete Wapp", icon: Trash2, onClick: () => props.onDelete(props.wapp.id), variant: "danger" as const },
   ];
 

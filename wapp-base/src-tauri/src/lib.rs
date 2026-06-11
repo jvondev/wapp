@@ -17,9 +17,15 @@ struct WappRuntimeConfig {
     maximize: bool,
 }
 
-fn default_name() -> String { "App".to_string() }
-fn default_width() -> f64 { 1200.0 }
-fn default_height() -> f64 { 780.0 }
+fn default_name() -> String {
+    "App".to_string()
+}
+fn default_width() -> f64 {
+    1200.0
+}
+fn default_height() -> f64 {
+    780.0
+}
 
 fn get_config_path() -> PathBuf {
     std::env::current_exe()
@@ -31,9 +37,8 @@ fn get_config_path() -> PathBuf {
 
 fn load_config() -> WappRuntimeConfig {
     let path = get_config_path();
-    let raw = std::fs::read_to_string(&path).unwrap_or_else(|_| {
-        r#"{"url":"about:blank","name":"App"}"#.to_string()
-    });
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|_| r#"{"url":"about:blank","name":"App"}"#.to_string());
     serde_json::from_str(&raw).unwrap_or_else(|_| WappRuntimeConfig {
         url: "about:blank".to_string(),
         name: "App".to_string(),
@@ -47,10 +52,12 @@ fn load_config() -> WappRuntimeConfig {
 
 fn decode_base64_icon(data_url: &str) -> Option<tauri::image::Image<'static>> {
     let parts: Vec<&str> = data_url.split(',').collect();
-    if parts.len() != 2 { return None; }
+    if parts.len() != 2 {
+        return None;
+    }
     let base64_data = parts[1];
-    
-    use base64::{Engine as _, engine::general_purpose};
+
+    use base64::{engine::general_purpose, Engine as _};
     if let Ok(bytes) = general_purpose::STANDARD.decode(base64_data) {
         if let Ok(img) = tauri::image::Image::from_bytes(&bytes) {
             return Some(img.to_owned());
@@ -93,12 +100,12 @@ pub fn run() {
             if maximize {
                 builder = builder.maximized(true);
             }
-            
+
             if let Some(icon_str) = &icon {
                 if let Some(img) = decode_base64_icon(icon_str) {
                     #[cfg(target_os = "macos")]
                     let _ = app.handle().set_icon(img.clone());
-                    
+
                     builder = builder.icon(img).expect("failed to set icon");
                 }
             }

@@ -13,19 +13,29 @@ import path from 'path';
  */
 
 const isWindows = process.platform === 'win32';
-const binName = isWindows ? 'wapp-base.exe' : 'wapp-base';
-// Direct detection from package.json scripts
-const isLocalFlag = process.argv.includes('--local');
+const isMac = process.platform === 'darwin';
+const isLinux = process.platform === 'linux';
+
+// Determine the binary name as expected by the Rust sidecar logic
+const binName = isWindows ? 'wapp-base.exe' : (isMac ? 'wapp-base-mac' : 'wapp-base-linux');
+// Cargo build output name (without platform suffix)
+const cargoBinName = isWindows ? 'wapp-base.exe' : 'wapp-base';
+
+const hasLocalSource = fs.existsSync('wapp-base/src-tauri/Cargo.toml');
+const isCloudRequested = process.argv.includes('--cloud');
+const isLocalMode = hasLocalSource && !isCloudRequested;
 const isBuild = process.argv.includes('--build');
 
-const mode = isLocalFlag ? 'LOCAL' : 'CLOUD';
+const mode = isLocalMode ? 'LOCAL' : 'CLOUD';
 console.log(`[MODE] ${mode}`);
 
 // Set terminal tab title
 process.stdout.write(`\u001b]0;Wapp [${mode}]\u0007`);
 
 const destDir = path.join('src-tauri', 'bin');
+// Try to find the binary in NPM package - it might have different names or be in a flat structure
 const npmPkgPath = path.join('node_modules', '@jvondev', 'wapp-base', 'bin', binName);
+const npmPkgPathFallback = path.join('node_modules', '@jvondev', 'wapp-base', 'bin', isWindows ? 'wapp-base.exe' : 'wapp-base');
 
 // 1. Version Check
 function checkVersions() {
@@ -80,8 +90,8 @@ function startTauri() {
     });
 }
 
-if (isLocalFlag) {
-  console.log('🏗️  LOCAL mode active.');
+if (isLocalMode) {
+  console.log('🏗️  LOCAL mode active (found local source).');
   checkVersions();
 
   console.log('🔨 Performing initial wapp-base build...');
@@ -112,26 +122,28 @@ if (isLocalFlag) {
     });
   }
 } else {
-  if (!fs.existsSync(npmPkgPath)) {
+  const actualNpmPath = fs.existsSync(npmPkgPath) ? npmPkgPath : npmPkgPathFallback;
+
+  if (!fs.existsSync(actualNpmPath)) {
     console.log('⚠️  Cloud binaries missing. Running "npm install"...');
     spawnSync('npm', ['install'], { stdio: 'inherit', shell: true });
   }
   
-  if (fs.existsSync(npmPkgPath)) {
+  if (fs.existsSync(actualNpmPath)) {
     console.log('☁️  CLOUD mode active.');
     // Architecture check
-    const isExeFound = npmPkgPath.endsWith('.exe');
+    const isExeFound = actualNpmPath.endsWith('.exe');
     if (isWindows && !isExeFound) {
-        console.error('❌ Error: Expected .exe for Windows but found ' + npmPkgPath);
+        console.error('❌ Error: Expected .exe for Windows but found ' + actualNpmPath);
         process.exit(1);
     } else if (!isWindows && isExeFound) {
-        console.error('❌ Error: Found .exe on non-Windows platform: ' + npmPkgPath);
+        console.error('❌ Error: Found .exe on non-Windows platform: ' + actualNpmPath);
         process.exit(1);
     }
-    fs.copyFileSync(npmPkgPath, path.join(destDir, binName));
+    fs.copyFileSync(actualNpmPath, path.join(destDir, binName));
     startTauri();
   } else {
-    console.error('❌ Could not find cloud binary. Try "npm run dev:local".');
+    console.error('❌ Could not find cloud binary. If you intended to use local source, ensure wapp-base/src-tauri/Cargo.toml exists.');
     process.exit(1);
   }
 }

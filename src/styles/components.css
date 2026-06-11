@@ -13,16 +13,6 @@
   font-weight: 800;
 }
 
-.nav-item:hover {
-  background-color: hsl(var(--accent) / 0.5) !important;
-  color: hsl(var(--foreground)) !important;
-}
-
-.nav-item.active {
-  background-color: hsl(var(--accent)) !important;
-  color: hsl(var(--foreground)) !important;
-  font-weight: 600 !important;
-}
 
 .filter-btn {
   background: transparent;
@@ -386,11 +376,11 @@
 }
 
 .context-menu-item.danger {
-  color: #ef4444;
+  color: hsl(var(--destructive));
 }
 
 .context-menu-item.danger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: hsl(var(--destructive) / 0.1);
 }
 
 /* Onboarding / Empty State Centering */
