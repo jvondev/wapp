@@ -43,25 +43,7 @@ jobs:
           comment-author: 'github-actions[bot]'
           body-includes: '<!-- tauri-preview-bot-marker -->'
 
-      - name: Check Trigger Condition
-        id: check_trigger
-        run: |
-          TRIGGERED="false"
-          # Check comment body, PR body, or commit messages for trigger keywords
-          # Includes '/auto-preview' for hands-free automation
-          COMMENT_BODY="${{ github.event.comment.body || github.event.pull_request.body }}"
-
-          if [[ "$COMMENT_BODY" == *"[x] 🚀 Click here to deploy Live Tauri Preview Session"* ]]; then
-            TRIGGERED="true"
-          elif [[ "$COMMENT_BODY" == *"/preview"* || "$COMMENT_BODY" == *"/auto-preview"* ]]; then
-            TRIGGERED="true"
-          fi
-
-          echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
-          echo "Triggered: $TRIGGERED"
-
       - name: Initialize / Reset Bot Comment (State A)
-        if: steps.fc.outputs.comment-id == '' || steps.check_trigger.outputs.triggered != 'true'
         id: init_comment
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -74,7 +56,7 @@ jobs:
             - [ ] 🚀 Click here to deploy Live Tauri Preview Session
 
             **Status:** `Idle` 😴
-          edit-mode: replace
+          edit-mode: ${{ steps.fc.outputs.comment-id == '' && 'create' || 'replace' }}
 
       - name: Set Comment ID
         id: set_comment_id
@@ -82,12 +64,25 @@ jobs:
           COMMENT_ID="${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}"
           echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
 
-      - name: Permission Guard
+      - name: Check Trigger Condition
+        id: check_trigger
+        env:
+          EVENT_BODY: ${{ github.event.comment.body || github.event.pull_request.body }}
         run: |
-          # Try to get association from various possible event contexts
-          SENDER_ASSOC="${{ github.event.pull_request.author_association || github.event.comment.author_association || github.event.sender.author_association }}"
-          echo "Sender Association: $SENDER_ASSOC"
+          TRIGGERED="false"
+          if echo "$EVENT_BODY" | grep -q "\[x\] 🚀 Click here to deploy Live Tauri Preview Session"; then
+            TRIGGERED="true"
+          elif echo "$EVENT_BODY" | grep -q "/preview" || echo "$EVENT_BODY" | grep -q "/auto-preview"; then
+            TRIGGERED="true"
+          fi
+          echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
+          echo "Triggered: $TRIGGERED"
 
+      - name: Permission Guard
+        env:
+          SENDER_ASSOC: ${{ github.event.pull_request.author_association || github.event.comment.author_association || github.event.sender.author_association }}
+        run: |
+          echo "Sender Association: $SENDER_ASSOC"
           if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
             echo "::error::Unauthorized user association: $SENDER_ASSOC. Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
             exit 1
