@@ -223,10 +223,10 @@ pub fn build_wapp(app_handle: AppHandle, input: BuildWappInput) -> Result<(), St
         let _ = fs::create_dir_all(&app_folder);
 
         let resource_dir = app_handle_clone.path().resource_dir().unwrap_or_default();
-        let os_list = if os.is_empty() {
+        let os_list = if input.os.is_empty() {
             vec!["windows".to_string()]
         } else {
-            os.clone()
+            input.os.clone()
         };
 
         let mut first_built_path: Option<PathBuf> = None;
