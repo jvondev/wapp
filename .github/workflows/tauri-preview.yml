@@ -1,7 +1,7 @@
 name: Tauri Preview
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited, synchronized, reopened, ready_for_review]
   issue_comment:
     types: [created, edited]
@@ -20,7 +20,6 @@ jobs:
   preview:
     name: Live Tauri Preview
     # Trigger on any open PR or issue comment related to a PR.
-    # This job runs on all relevant events to ensure the bot comment is visible.
     if: >
       (github.event.pull_request && github.event.pull_request.state == 'open') ||
       (github.event.issue.pull_request && github.event.issue.state == 'open')
@@ -29,23 +28,54 @@ jobs:
       group: tauri-preview-${{ github.event.number || github.event.issue.number }}
       cancel-in-progress: true
     steps:
+      - name: Permission Guard
+        env:
+          SENDER_ASSOC: ${{ github.event.pull_request.author_association || github.event.comment.author_association || github.event.sender.author_association }}
+        run: |
+          echo "Sender Association: \"$SENDER_ASSOC\""
+          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
+            echo "::error::Unauthorized user association: \"$SENDER_ASSOC\". Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
+            exit 1
+          fi
+
       - name: Debug Event Info
         run: |
-          echo "Event Name: ${{ github.event_name }}"
-          echo "Event Action: ${{ github.event.action }}"
-          echo "PR Number: ${{ github.event.pull_request.number || github.event.issue.number }}"
+          echo "Event Name: \"${{ github.event_name }}\""
+          echo "Event Action: \"${{ github.event.action }}\""
+          echo "PR Number: \"${{ github.event.pull_request.number || github.event.issue.number }}\""
 
       - name: Find Bot Comment
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
         id: fc
         with:
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
           comment-author: 'github-actions[bot]'
           body-includes: '<!-- tauri-preview-bot-marker -->'
 
+      - name: Check Trigger Condition
+        id: check_trigger
+        env:
+          EVENT_BODY: ${{ github.event.comment.body || github.event.pull_request.body }}
+        run: |
+          TRIGGERED="false"
+          # Use a heredoc to safely handle potential multiline/special chars in the body
+          # We use a single-quoted heredoc delimiter 'EOF' to prevent shell expansion within the heredoc
+          # But we need to get the EVENT_BODY into it safely.
+          # Environment variables are the safest way to pass this data into the shell.
+
+          if echo "$EVENT_BODY" | grep -q "\[x\] 🚀 Click here to deploy Live Tauri Preview Session"; then
+            TRIGGERED="true"
+          elif echo "$EVENT_BODY" | grep -q "/preview" || echo "$EVENT_BODY" | grep -q "/auto-preview"; then
+            TRIGGERED="true"
+          fi
+
+          echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
+          echo "Triggered: $TRIGGERED"
+
       - name: Initialize / Reset Bot Comment (State A)
+        if: steps.fc.outputs.comment-id == '' || steps.check_trigger.outputs.triggered != 'true'
         id: init_comment
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -56,37 +86,13 @@ jobs:
             - [ ] 🚀 Click here to deploy Live Tauri Preview Session
 
             **Status:** `Idle` 😴
-          edit-mode: ${{ steps.fc.outputs.comment-id == '' && 'create' || 'replace' }}
+          edit-mode: replace
 
       - name: Set Comment ID
         id: set_comment_id
         run: |
           COMMENT_ID="${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}"
           echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
-
-      - name: Check Trigger Condition
-        id: check_trigger
-        env:
-          EVENT_BODY: ${{ github.event.comment.body || github.event.pull_request.body }}
-        run: |
-          TRIGGERED="false"
-          if echo "$EVENT_BODY" | grep -q "\[x\] 🚀 Click here to deploy Live Tauri Preview Session"; then
-            TRIGGERED="true"
-          elif echo "$EVENT_BODY" | grep -q "/preview" || echo "$EVENT_BODY" | grep -q "/auto-preview"; then
-            TRIGGERED="true"
-          fi
-          echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
-          echo "Triggered: $TRIGGERED"
-
-      - name: Permission Guard
-        env:
-          SENDER_ASSOC: ${{ github.event.pull_request.author_association || github.event.comment.author_association || github.event.sender.author_association }}
-        run: |
-          echo "Sender Association: $SENDER_ASSOC"
-          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
-            echo "::error::Unauthorized user association: $SENDER_ASSOC. Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
-            exit 1
-          fi
 
       - name: Stop if not triggered
         if: steps.check_trigger.outputs.triggered != 'true'
@@ -108,13 +114,13 @@ jobs:
           fi
 
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           ref: ${{ steps.resolve_sha.outputs.sha }}
           persist-credentials: false
 
       - name: Update Comment to State B (Pre-Flight Checks)
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -169,7 +175,7 @@ jobs:
 
       - name: Handle Guard Failure
         if: failure() && steps.set_comment_id.outputs.comment_id != ''
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -182,7 +188,7 @@ jobs:
           edit-mode: replace
 
       - name: Update Comment to State C (Compiling)
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -204,12 +210,12 @@ jobs:
             xvfb x11vnc novnc websockify
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
 
       - name: Node Modules Cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -217,7 +223,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Vite Cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: node_modules/.cache
           key: ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json', '**/vite.config.ts') }}
@@ -229,9 +235,11 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       - name: Rust Cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
         with:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
 
@@ -280,7 +288,7 @@ jobs:
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
 
       - name: Update Comment to State D (Active Stream Link)
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
