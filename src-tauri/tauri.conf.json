@@ -33,7 +33,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "bin/.gitkeep"
+      "bin/.gitkeep",
+      "base-bin/*"
     ]
   }
 }

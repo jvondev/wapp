@@ -25,10 +25,29 @@ export const WappCard: Component<WappCardProps> = (props) => {
     setContextMenu({ x: e.clientX, y: e.clientY });
   };
 
+  const handleViewSource = () => {
+    let normalizedUrl = props.wapp.url;
+
+    // Add http:// if no scheme is present
+    if (!normalizedUrl.match(/^[a-z][a-z0-9+.-]*:/i)) {
+      normalizedUrl = 'http://' + normalizedUrl;
+    }
+
+    // Validate protocol is http or https
+    try {
+      const url = new URL(normalizedUrl);
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        window.open(normalizedUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {
+      console.error('Invalid URL:', e);
+    }
+  };
+
   const menuOptions = [
     { label: "Launch App", icon: Play, onClick: () => props.onLaunch(props.wapp.path) },
     { label: "Edit Config", icon: Edit2, onClick: () => props.onEdit(props.wapp) },
-    { label: "View Source", icon: ExternalLink, onClick: () => window.open(props.wapp.url, '_blank', 'noopener,noreferrer') },
+    { label: "View Source", icon: ExternalLink, onClick: handleViewSource },
     { label: "Delete Wapp", icon: Trash2, onClick: () => props.onDelete(props.wapp.id), variant: "danger" as const },
   ];
 

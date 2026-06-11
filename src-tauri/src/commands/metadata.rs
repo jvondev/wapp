@@ -61,23 +61,11 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
                     let mut icon_path = raw.to_string();
                     if icon_path.starts_with("//") {
                         icon_path = format!("https:{}", icon_path);
-                    } else if icon_path.starts_with("/") {
+                    } else if icon_path.starts_with("/") || !icon_path.starts_with("http") {
                         if let Ok(base) = url::Url::parse(&target_url) {
-                            icon_path = format!(
-                                "{}://{}{}",
-                                base.scheme(),
-                                base.host_str().unwrap_or_default(),
-                                icon_path
-                            );
-                        }
-                    } else if !icon_path.starts_with("http") {
-                        if let Ok(base) = url::Url::parse(&target_url) {
-                            icon_path = format!(
-                                "{}://{}/{}",
-                                base.scheme(),
-                                base.host_str().unwrap_or_default(),
-                                icon_path
-                            );
+                            if let Ok(resolved) = base.join(&icon_path) {
+                                icon_path = resolved.into();
+                            }
                         }
                     }
                     icon_found = Some(icon_path);
@@ -92,11 +80,9 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
 
     if icon.is_none() {
         if let Ok(base) = url::Url::parse(&target_url) {
-            icon = Some(format!(
-                "{}://{}/favicon.ico",
-                base.scheme(),
-                base.host_str().unwrap_or_default()
-            ));
+            if let Ok(favicon_url) = base.join("favicon.ico") {
+                icon = Some(favicon_url.into());
+            }
         }
     }
 

@@ -246,11 +246,11 @@ pub fn build_wapp(app_handle: AppHandle, input: BuildWappInput) -> Result<(), St
 
             // Select correct base binary
             let base_bin_name = match target_os {
-                "mac" => "wapp-base-mac",
-                "linux" => "wapp-base-linux",
+                "mac" => "wapp-base",
+                "linux" => "wapp-base",
                 _ => "wapp-base.exe",
             };
-            let base_exe_path = resource_dir.join("bin").join(base_bin_name);
+            let base_exe_path = resource_dir.join("base-bin").join(base_bin_name);
 
             let (final_exe_path, config_path) =
                 build_for_format(&app_folder, &name_clone, fmt, target_os, &base_exe_path);

@@ -44,7 +44,7 @@ export const EditWappModal: Component = () => {
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
     if (!state.editingWapp) return;
-    
+
     try {
       await actions.editWapp(state.editingWapp.id, {
         name: name(),
@@ -56,8 +56,10 @@ export const EditWappModal: Component = () => {
         maximize: maximize(),
       }, customIcon());
 
+      // Only close modal if editWapp succeeded (didn't throw)
       actions.setEditingWapp(null);
     } catch (err) {
+      // Error is already logged and displayed by actions.editWapp
       console.error("Failed to edit wapp:", err);
     }
   };
