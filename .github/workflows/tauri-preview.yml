@@ -37,6 +37,17 @@ jobs:
       cancel-in-progress: true
 
     steps:
+      # Zero-Trust Security: Permission Guard
+      # Move this to the very beginning to prevent any processing for unauthorized users.
+      - name: Permission Guard
+        run: |
+          SENDER_ASSOC="${{ github.event.sender.author_association }}"
+          echo "Sender Association: $SENDER_ASSOC"
+          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
+            echo "::error::Unauthorized user association: $SENDER_ASSOC. Access restricted to repository collaborators."
+            exit 1
+          fi
+
       # Pre-Flight: Identify the PR and the target Commit SHA
       - name: Resolve PR Information
         id: pr_info
@@ -46,22 +57,21 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
             echo "number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
             echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-            echo "body=${{ github.event.pull_request.body }}" >> $GITHUB_OUTPUT
+            {
+              echo 'body<<EOF'
+              echo "${{ github.event.pull_request.body }}"
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
           else
             echo "number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+            # Securely fetch PR SHA using gh CLI
             PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
             echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
-            echo "body=${{ github.event.comment.body }}" >> $GITHUB_OUTPUT
-          fi
-
-      # Permission Guard: Only allow OWNER, MEMBER, or COLLABORATOR to trigger builds.
-      - name: Permission Guard
-        run: |
-          SENDER_ASSOC="${{ github.event.sender.author_association }}"
-          echo "Sender Association: $SENDER_ASSOC"
-          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
-            echo "::error::Unauthorized user association: $SENDER_ASSOC. Access restricted to repository collaborators."
-            exit 1
+            {
+              echo 'body<<EOF'
+              echo "${{ github.event.comment.body }}"
+              echo 'EOF'
+            } >> "$GITHUB_OUTPUT"
           fi
 
       # Bot UI: Scan for existing status dashboard comment
@@ -141,11 +151,11 @@ jobs:
             STATUS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/status)
             STATE=$(echo "$STATUS_JSON" | jq -r '.state')
 
-            # Check check-runs (modern Actions/Apps)
-            CHECKS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs)
+            # Optimization: Fetch only latest check-runs and filter completed ones
+            CHECKS_JSON=$(gh api "/repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs?filter=latest&per_page=100")
 
             # If any check has failed, we abort
-            if echo "$CHECKS_JSON" | jq -e '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out")' > /dev/null || [[ "$STATE" == "failure" ]]; then
+            if echo "$CHECKS_JSON" | jq -e '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "action_required")' > /dev/null || [[ "$STATE" == "failure" ]]; then
                echo "::error::CI checks failed for this commit. Aborting preview to save resources."
                exit 1
             fi
@@ -153,12 +163,13 @@ jobs:
             # If all checks passed
             if [[ "$STATE" == "success" ]]; then
               echo "Classic status checks passed."
-              # Also ensure no pending checks in check-runs (excluding ourselves)
+              # Ensure all required check-runs are completed (excluding ourselves)
               PENDING=$(echo "$CHECKS_JSON" | jq -r '.check_runs[] | select(.status != "completed" and .name != "Live Tauri Preview") | .name')
               if [[ -z "$PENDING" ]]; then
-                echo "All check-runs completed."
+                echo "All check-runs completed successfully."
                 exit 0
               fi
+              echo "The following checks are still pending: $PENDING"
             fi
 
             echo "Attempt $i/$MAX_ATTEMPTS: Checks still pending... Waiting 20s."
@@ -272,15 +283,24 @@ jobs:
       - name: Launch Tauri (Headless)
         run: |
           DISPLAY=:99 npm run tauri dev -- --no-watch > tauri_dev.log 2>&1 &
+
           # Wait for Vite and Tauri to be ready
+          READY=false
           for i in {1..60}; do
             if grep -q "VITE" tauri_dev.log && grep -q "Ready" tauri_dev.log; then
               echo "Frontend and Backend are ready."
+              READY=true
               break
             fi
             echo "Waiting for app initialization... ($i/60)"
             sleep 5
           done
+
+          if [ "$READY" != "true" ]; then
+            echo "::error::Tauri dev server did not become ready within the timeout. Dumping logs:"
+            cat tauri_dev.log
+            exit 1
+          fi
 
       - name: Establish Secure Ingress Tunnel (bore)
         id: tunnel
