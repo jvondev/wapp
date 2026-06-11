@@ -2,7 +2,7 @@ name: Tauri Preview
 
 on:
   pull_request:
-    types: [opened, edited, synchronized, reopened, ready_for_review]
+    types: [opened, edited, synchronized, reopened, ready_for_review, labeled]
   issue_comment:
     types: [created, edited]
   workflow_dispatch:
@@ -22,8 +22,8 @@ jobs:
       (github.event.issue.pull_request && github.event.issue.state == 'open')
     runs-on: ubuntu-latest
     concurrency:
-      # Use PR number to ensure one session per PR. New /preview triggers cancel old ones.
-      group: tauri-preview-${{ github.event.number || github.event.issue.number }}
+      # Ensures only one preview session runs per PR. New triggers cancel old ones.
+      group: tauri-preview-${{ github.event.pull_request.number || github.event.issue.number }}
       cancel-in-progress: true
     steps:
       - name: Permission Guard
@@ -53,18 +53,29 @@ jobs:
       - name: Check Trigger Condition
         id: check_trigger
         env:
+          GH_TOKEN: ${{ github.token }}
           EVENT_BODY: ${{ github.event.comment.body || github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           TRIGGERED="false"
-          # Robust slash command detection. Environment variables prevent Exit Code 127.
+          # Detect /preview command strictly
           if echo "$EVENT_BODY" | grep -qi "/preview"; then
             TRIGGERED="true"
           fi
+
+          # Detect 'preview' label (handles label addition event)
+          if [[ "$TRIGGERED" == "false" ]]; then
+            LABELS=$(gh pr view "$PR_NUMBER" --json labels -q '.labels[].name')
+            if echo "$LABELS" | grep -qi "preview"; then
+              TRIGGERED="true"
+            fi
+          fi
+
           echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
           echo "Triggered: $TRIGGERED"
 
       - name: Initialize / Update Bot Comment
-        # Provides immediate feedback and establishes a stable comment ID.
+        # Always run to keep the bot comment in a stable state (Idle or Preparing)
         id: init_comment
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -76,7 +87,7 @@ jobs:
 
             **Status:** ${{ steps.check_trigger.outputs.triggered == 'true' && '`Preparing environment...` ⚙️' || '`Idle` 😴' }}
 
-            ${{ steps.check_trigger.outputs.triggered != 'true' && '*Tip: Add `/preview` to the PR description or comment `/preview` to deploy.*' || '' }}
+            ${{ steps.check_trigger.outputs.triggered != 'true' && '*Tip: Add the `preview` label or comment `/preview` to deploy a live session.*' || '' }}
           edit-mode: replace
 
       - name: Set Comment ID
@@ -88,7 +99,7 @@ jobs:
       - name: Stop if not triggered
         if: steps.check_trigger.outputs.triggered != 'true'
         run: |
-          echo "Workflow was not triggered by '/preview' keyword. Hanging up."
+          echo "Workflow was not triggered by '/preview' or label. Hanging up."
           exit 0
 
       - name: Resolve PR Head SHA
@@ -99,7 +110,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           else
-            # For issue_comment, fetch the PR head SHA via gh CLI
+            # For issue_comment, we need to fetch the PR head SHA via gh CLI
             PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
             echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
           fi
@@ -131,7 +142,7 @@ jobs:
           WAIT_INTERVAL=20
 
           for ((i=1; i<=$MAX_ATTEMPTS; i++)); do
-            # Combined status state
+            # Combined status check
             STATUS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/status)
             STATE=$(echo "$STATUS_JSON" | jq -r '.state')
             echo "Attempt $i: Combined state is $STATE"
