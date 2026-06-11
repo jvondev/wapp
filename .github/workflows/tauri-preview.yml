@@ -1,8 +1,6 @@
 name: Tauri Preview
 
 on:
-  pull_request:
-    types: [opened, edited, synchronized, reopened, ready_for_review]
   pull_request_target:
     types: [opened, edited, synchronized, reopened, ready_for_review]
   issue_comment:
@@ -28,6 +26,14 @@ jobs:
       group: tauri-preview-${{ github.event.number || github.event.issue.number }}
       cancel-in-progress: true
     steps:
+      - name: Permission Guard
+        run: |
+          SENDER_ASSOC="${{ github.event.sender.author_association }}"
+          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
+            echo "::error::Unauthorized user association: $SENDER_ASSOC. Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
+            exit 1
+          fi
+
       - name: Debug Event Info
         run: |
           echo "Event Name: ${{ github.event_name }}"
@@ -35,7 +41,7 @@ jobs:
           echo "PR Number: ${{ github.event.pull_request.number || github.event.issue.number }}"
 
       - name: Find Bot Comment
-        uses: peter-evans/find-comment@3eae4d37986fb5ba85bfd4246944358a9e0839e9 # v3.1.0
+        uses: peter-evans/find-comment@v3
         id: fc
         with:
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -62,7 +68,7 @@ jobs:
       - name: Initialize / Reset Bot Comment (State A)
         if: steps.fc.outputs.comment-id == '' || steps.check_trigger.outputs.triggered != 'true'
         id: init_comment
-        uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -80,14 +86,6 @@ jobs:
         run: |
           COMMENT_ID="${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}"
           echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
-
-      - name: Permission Guard
-        run: |
-          SENDER_ASSOC="${{ github.event.sender.author_association }}"
-          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
-            echo "::error::Unauthorized user association: $SENDER_ASSOC. Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
-            exit 1
-          fi
 
       - name: Stop if not triggered
         if: steps.check_trigger.outputs.triggered != 'true'
@@ -109,13 +107,13 @@ jobs:
           fi
 
       - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
         with:
           ref: ${{ steps.resolve_sha.outputs.sha }}
           persist-credentials: false
 
       - name: Update Comment to State B (Pre-Flight Checks)
-        uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -170,7 +168,7 @@ jobs:
 
       - name: Handle Guard Failure
         if: failure()
-        uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -183,7 +181,7 @@ jobs:
           edit-mode: replace
 
       - name: Update Comment to State C (Compiling)
-        uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -205,12 +203,12 @@ jobs:
             xvfb x11vnc novnc websockify
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Node Modules Cache
-        uses: actions/cache@1bd1e32a3bdc453d9f5ad3573a1d93d92243540 # v4.2.0
+        uses: actions/cache@v4
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -218,7 +216,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Vite Cache
-        uses: actions/cache@1bd1e32a3bdc453d9f5ad3573a1d93d92243540 # v4.2.0
+        uses: actions/cache@v4
         with:
           path: node_modules/.cache
           key: ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json', '**/vite.config.ts') }}
@@ -229,10 +227,10 @@ jobs:
         run: npm ci
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Rust Cache
-        uses: swatinem/rust-cache@54e2af0a8339c0435fa1de94002eab349a2f15ef # v2.7.3
+        uses: swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
 
@@ -281,7 +279,7 @@ jobs:
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
 
       - name: Update Comment to State D (Active Stream Link)
-        uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
