@@ -2,7 +2,7 @@ name: Tauri Preview
 
 on:
   pull_request:
-    types: [opened, edited, synchronized, reopened, ready_for_review, labeled]
+    types: [opened, ready_for_review, labeled]
   issue_comment:
     types: [created, edited]
   workflow_dispatch:
@@ -16,14 +16,17 @@ permissions:
 jobs:
   preview:
     name: Live Tauri Preview
-    # Job-level guard: only run on open PRs or PR-related comments
+    # Job-level guard:
+    # 1. only run on open PRs or related comments
+    # 2. Prevent the bot from triggering its own edits (prevents cancellation loops)
     if: >
-      (github.event.pull_request && github.event.pull_request.state == 'open') ||
-      (github.event.issue.pull_request && github.event.issue.state == 'open')
+      github.event.sender.login != 'github-actions[bot]' &&
+      ((github.event.pull_request && github.event.pull_request.state == 'open') ||
+      (github.event.issue.pull_request && github.event.issue.state == 'open'))
     runs-on: ubuntu-latest
     concurrency:
-      # Ensures only one preview session runs per PR. New triggers cancel old ones.
-      group: tauri-preview-${{ github.event.number || github.event.issue.number }}
+      # Ensures only one preview session runs per PR.
+      group: tauri-preview-${{ github.event.pull_request.number || github.event.issue.number }}
       cancel-in-progress: true
     steps:
       - name: Permission Guard
@@ -58,7 +61,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           TRIGGERED="false"
-          # Check for [x] checkbox, /preview command, or 'preview' label
+          # Detect [x] checkbox, /preview command, or 'preview' label
           if echo "$EVENT_BODY" | grep -qi "\[x\] 🚀 Click here to deploy Live Tauri Preview Session"; then
             TRIGGERED="true"
           elif echo "$EVENT_BODY" | grep -qi "/preview"; then
@@ -75,8 +78,7 @@ jobs:
           echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
           echo "Triggered: $TRIGGERED"
 
-      - name: Initialize / Update Bot Comment (State A)
-        # Always run to establish a stable comment ID and provide immediate feedback.
+      - name: Initialize / Update Bot Comment
         id: init_comment
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -121,7 +123,7 @@ jobs:
           ref: ${{ steps.resolve_sha.outputs.sha }}
           persist-credentials: false
 
-      - name: Update Comment to State B (Verifying CI)
+      - name: Update Comment (Pre-Flight)
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
@@ -156,21 +158,7 @@ jobs:
           done
           exit 1
 
-      - name: Handle Guard Failure
-        if: failure() && steps.set_comment_id.outputs.comment_id != ''
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
-          body: |
-            <!-- tauri-preview-bot-marker -->
-            ## 🚀 Tauri Live Preview
-
-            - [ ] 🚀 Click here to deploy Live Tauri Preview Session
-
-            **Status:** `Failed` ❌ (Upstream CI checks are failing or timed out.)
-          edit-mode: replace
-
-      - name: Update Comment to State C (Compiling)
+      - name: Update Comment (Compiling)
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
@@ -250,7 +238,7 @@ jobs:
           if [[ -z "$REMOTE_PORT" ]]; then exit 1; fi
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
 
-      - name: Update Comment to State D (Active)
+      - name: Update Comment (Active)
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
@@ -260,7 +248,7 @@ jobs:
 
             - [x] 🚀 Click here to deploy Live Tauri Preview Session
 
-            **Status:** `Active` ✅
+            ✅ **Preview session is active!**
 
             ### 📺 [Click here to open the Live Preview](${{ steps.tunnel.outputs.url }})
 
@@ -268,10 +256,26 @@ jobs:
             - **Commit SHA:** `${{ steps.resolve_sha.outputs.sha }}`
             - **Expires in:** 15 minutes
 
-            *Tip: If the viewport doesn't fit, use the sidebar menu in noVNC to toggle "Scaling".*
+            *Tip: To restart, uncheck and re-check the box or comment `/preview`.*
           edit-mode: replace
 
       - name: Keep Alive
         run: |
           echo "Preview session is active. Waiting 15 minutes before automatic termination..."
           sleep 900
+
+      - name: Reset Comment on Completion
+        if: always() && steps.set_comment_id.outputs.comment_id != ''
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
+          body: |
+            <!-- tauri-preview-bot-marker -->
+            ## 🚀 Tauri Live Preview
+
+            - [ ] 🚀 Click here to deploy Live Tauri Preview Session
+
+            **Status:** `Idle` 😴
+
+            ${{ job.status == 'cancelled' && '*Note: Session was cancelled by a new trigger.*' || (job.status == 'failure' && '*Note: Last deployment attempt failed.*' || '*Note: Last session expired or finished.*') }}
+          edit-mode: replace
