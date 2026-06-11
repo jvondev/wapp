@@ -1,6 +1,8 @@
 name: Tauri Preview
 
 on:
+  pull_request:
+    types: [opened, edited, synchronized, reopened, ready_for_review]
   pull_request_target:
     types: [opened, edited, synchronized, reopened, ready_for_review]
   issue_comment:
@@ -37,11 +39,13 @@ jobs:
         id: check_trigger
         run: |
           TRIGGERED="false"
+          # Check comment body, PR body, or commit messages for trigger keywords
+          # Includes '/auto-preview' for hands-free automation
           COMMENT_BODY="${{ github.event.comment.body || github.event.pull_request.body }}"
 
           if [[ "$COMMENT_BODY" == *"[x] 🚀 Click here to deploy Live Tauri Preview Session"* ]]; then
             TRIGGERED="true"
-          elif [[ "$COMMENT_BODY" == *"/preview"* ]]; then
+          elif [[ "$COMMENT_BODY" == *"/preview"* || "$COMMENT_BODY" == *"/auto-preview"* ]]; then
             TRIGGERED="true"
           fi
 
@@ -89,7 +93,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
             echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           else
             # For issue_comment, we need to fetch the PR head SHA via gh CLI
