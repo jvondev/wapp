@@ -3,31 +3,52 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * ADVANCED DEV WRAPPER
+ * WAPP SMART DEVELOPER WORKFLOW
  * 
- * Improvements:
- * 1. Version Drift Warning (NPM vs Local Source)
- * 2. Parallel Frontend & Base Build (Speed)
- * 3. Architecture & OS Safeguards
- * 4. Automatic Workspace Cleanup
+ * This script automates the development environment by choosing between:
+ * 1. LOCAL MODE: Uses source code in wapp-base/ (Ideal for contributors).
+ *    - Automatically detects local source.
+ *    - Rebuilds base binary on changes (Watch Mode).
+ *    - Ensures Rust (cargo) is installed.
+ *
+ * 2. NPM MODE: Uses pre-built binaries from registry (Ideal for rapid UI work).
+ *    - Triggered via --npm flag or if source is missing.
+ *    - Automatically runs 'npm install' if binaries are missing.
+ *
+ * Features:
+ * - Version Drift Warning: Alerts if local base version != package.json requirement.
+ * - Auto-Cleanup: Manages sidecar directories to prevent stale builds.
  */
 
 const isWindows = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
-const isLinux = process.platform === 'linux';
 
 // Determine the binary name as expected by the Rust sidecar logic
 const binName = isWindows ? 'wapp-base.exe' : (isMac ? 'wapp-base-mac' : 'wapp-base-linux');
 
 const hasLocalSource = fs.existsSync('wapp-base/src-tauri/Cargo.toml');
-const isCloudRequested = process.argv.includes('--cloud');
-// Auto-detect: if source exists, use it unless --cloud is passed.
+const isNpmRequested = process.argv.includes('--npm') || process.argv.includes('--cloud') || process.argv.includes('--prebuilt');
+// Auto-detect: if source exists, use it unless --npm is passed.
 // Also support --local for explicit clarity if someone still wants to use it.
-const isLocalMode = hasLocalSource && (process.argv.includes('--local') || !isCloudRequested);
+const isLocalMode = hasLocalSource && (process.argv.includes('--local') || !isNpmRequested);
 const isBuild = process.argv.includes('--build');
 
-const mode = isLocalMode ? 'LOCAL' : 'CLOUD';
-console.log(`[MODE] ${mode}`);
+const mode = isLocalMode ? 'LOCAL' : 'NPM';
+
+// Informative logging for the "Smart" workflow
+if (isLocalMode) {
+  if (process.argv.includes('--local')) {
+    console.log(`[MODE] ${mode} (Explicitly requested via --local)`);
+  } else {
+    console.log(`[MODE] ${mode} (Auto-detected local source in wapp-base/)`);
+  }
+} else {
+  if (isNpmRequested) {
+    console.log(`[MODE] ${mode} (Explicitly requested via --npm)`);
+  } else {
+    console.log(`[MODE] ${mode} (Using pre-built binaries from npm)`);
+  }
+}
 
 // Set terminal tab title
 process.stdout.write(`\u001b]0;Wapp [${mode}]\u0007`);
@@ -103,30 +124,48 @@ if (isLocalMode) {
 
   checkVersions();
 
-  console.log('🔨 Performing initial wapp-base build...');
-  const prep = spawnSync('node', ['scripts/prepare-base.js'], { stdio: 'inherit', shell: true });
-  
-  if (prep.status !== 0) {
-      console.error('❌ Initial base build failed.');
-      process.exit(1);
+  const localBinPath = path.join(destDir, binName);
+  if (!fs.existsSync(localBinPath)) {
+    console.log('🔨 Performing initial wapp-base build...');
+    console.log('\x1b[90m(Note: Using debug build for speed. First build takes time, subsequent starts are instant.)\x1b[0m');
+    const prep = spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
+
+    if (prep.status !== 0) {
+        console.error('❌ Initial base build failed.');
+        process.exit(1);
+    }
+  } else {
+    console.log('⚡ Using existing local binary (skipping initial build).');
   }
 
   startTauri();
 
   // Watch for changes in wapp-base for "Auto-Refresh"
   if (!isBuild) {
-    console.log('👀 Watching wapp-base/src-tauri/src for changes...');
+    const watchDir = path.join('wapp-base', 'src-tauri', 'src');
+    console.log(`👀 Watching for changes in ${watchDir}...`);
+
     let debounceTimer = null;
-    fs.watch(path.join('wapp-base', 'src-tauri', 'src'), { recursive: true }, (event, filename) => {
-        if (filename && filename.endsWith('.rs')) {
+    fs.watch(watchDir, { recursive: true }, (event, filename) => {
+        // Only trigger rebuild for Rust files or Cargo.toml
+        if (filename && (filename.endsWith('.rs') || filename.endsWith('Cargo.toml'))) {
             if (debounceTimer) clearTimeout(debounceTimer);
+
             debounceTimer = setTimeout(() => {
-                console.log(`\n📝 Change detected in ${filename}. Rebuilding...`);
-                const rebuild = spawnSync('node', ['scripts/prepare-base.js'], { stdio: 'inherit', shell: true });
+                console.log(`\n📝 Change detected: ${filename}. Rebuilding wapp-base...`);
+
+                // Show a clear visual separator in the logs
+                console.log('--------------------------------------------------');
+                const rebuild = spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
+                console.log('--------------------------------------------------');
+
                 if (rebuild.status === 0) {
+                    console.log('✅ Rebuild successful. Restarting app...');
                     startTauri();
+                } else {
+                    console.error('❌ Rebuild failed. Fix the errors above to resume.');
                 }
-            }, 1000);
+            }, 500); // Faster debounce for snappier DX
         }
     });
   }
@@ -134,12 +173,12 @@ if (isLocalMode) {
   const actualNpmPath = fs.existsSync(npmPkgPath) ? npmPkgPath : npmPkgPathFallback;
 
   if (!fs.existsSync(actualNpmPath)) {
-    console.log('⚠️  Cloud binaries missing. Running "npm install"...');
+    console.log('⚠️  NPM binaries missing. Running "npm install"...');
     spawnSync('npm', ['install'], { stdio: 'inherit', shell: true });
   }
   
   if (fs.existsSync(actualNpmPath)) {
-    console.log('☁️  CLOUD mode active.');
+    console.log('☁️  NPM mode active.');
     // Architecture check
     const isExeFound = actualNpmPath.endsWith('.exe');
     if (isWindows && !isExeFound) {
@@ -152,7 +191,7 @@ if (isLocalMode) {
     fs.copyFileSync(actualNpmPath, path.join(destDir, binName));
     startTauri();
   } else {
-    console.error('❌ Could not find cloud binary. If you intended to use local source, ensure wapp-base/src-tauri/Cargo.toml exists.');
+    console.error('❌ Could not find pre-built binary in npm package. If you intended to use local source, ensure wapp-base/src-tauri/Cargo.toml exists.');
     process.exit(1);
   }
 }

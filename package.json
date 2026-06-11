@@ -22,6 +22,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.js",
+    "dev:npm": "node scripts/dev.js --npm",
     "build": "vite build",
     "build:app": "node scripts/dev.js --build",
     "vite": "vite",
