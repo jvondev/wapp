@@ -1,3 +1,7 @@
+/**
+ * Entry point for the Wapp desktop application.
+ * Initializes the SolidJS app and provides the global store context.
+ */
 import { render } from "solid-js/web";
 import App from "./App";
 import { AppStoreProvider, useAppStore } from "./store";

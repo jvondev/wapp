@@ -1,14 +1,19 @@
 name: Tauri Preview
 
+# Trigger Conditions & State Tracking
+# ----------------------------------
+# We trigger on pull_request_target to allow the bot to interact with PRs from forks securely
+# while also catching checkbox click events (which appear as PR 'edited' events).
+# issue_comment is used to support slash commands like /preview.
 on:
-  pull_request:
-    types: [opened, edited, synchronized, reopened, ready_for_review]
   pull_request_target:
     types: [opened, edited, synchronized, reopened, ready_for_review]
   issue_comment:
     types: [created, edited]
-  workflow_dispatch:
 
+# Enterprise Security Architecture: Zero-Trust Guardrails
+# ------------------------------------------------------
+# Explicitly set top-level GitHub Token system permissions to the absolute minimum.
 permissions:
   contents: read
   pull-requests: write
@@ -18,54 +23,78 @@ permissions:
 jobs:
   preview:
     name: Live Tauri Preview
-    # Trigger on any open PR or issue comment related to a PR.
-    # This job runs on all relevant events to ensure the bot comment is visible.
+    # Prevent execution if the Pull Request status is not explicitly 'open'.
     if: >
       (github.event.pull_request && github.event.pull_request.state == 'open') ||
       (github.event.issue.pull_request && github.event.issue.state == 'open')
     runs-on: ubuntu-latest
+
+    # Hyper-efficient concurrency grouping tied exclusively to the active PR.
+    # cancel-in-progress: true ensures old instances are pruned immediately on update.
     concurrency:
       group: tauri-preview-${{ github.event.number || github.event.issue.number }}
       cancel-in-progress: true
-    steps:
-      - name: Debug Event Info
-        run: |
-          echo "Event Name: ${{ github.event_name }}"
-          echo "Event Action: ${{ github.event.action }}"
-          echo "PR Number: ${{ github.event.pull_request.number || github.event.issue.number }}"
 
+    steps:
+      # Pre-Flight: Identify the PR and the target Commit SHA
+      - name: Resolve PR Information
+        id: pr_info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
+            echo "number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.pull_request.body }}" >> $GITHUB_OUTPUT
+          else
+            echo "number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+            PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
+            echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.comment.body }}" >> $GITHUB_OUTPUT
+          fi
+
+      # Permission Guard: Only allow OWNER, MEMBER, or COLLABORATOR to trigger builds.
+      - name: Permission Guard
+        run: |
+          SENDER_ASSOC="${{ github.event.sender.author_association }}"
+          echo "Sender Association: $SENDER_ASSOC"
+          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
+            echo "::error::Unauthorized user association: $SENDER_ASSOC. Access restricted to repository collaborators."
+            exit 1
+          fi
+
+      # Bot UI: Scan for existing status dashboard comment
       - name: Find Bot Comment
         uses: peter-evans/find-comment@3eae4d37986fb5ba85bfd4246944358a9e0839e9 # v3.1.0
         id: fc
         with:
-          issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          issue-number: ${{ steps.pr_info.outputs.number }}
           comment-author: 'github-actions[bot]'
           body-includes: '<!-- tauri-preview-bot-marker -->'
 
+      # Trigger Logic: Check if deployment is requested via checkbox or keyword
       - name: Check Trigger Condition
         id: check_trigger
         run: |
           TRIGGERED="false"
-          # Check comment body, PR body, or commit messages for trigger keywords
-          # Includes '/auto-preview' for hands-free automation
-          COMMENT_BODY="${{ github.event.comment.body || github.event.pull_request.body }}"
+          BODY="${{ steps.pr_info.outputs.body }}"
 
-          if [[ "$COMMENT_BODY" == *"[x] 🚀 Click here to deploy Live Tauri Preview Session"* ]]; then
+          if [[ "$BODY" == *"[x] 🚀 Click here to deploy Live Tauri Preview Session"* ]]; then
             TRIGGERED="true"
-          elif [[ "$COMMENT_BODY" == *"/preview"* || "$COMMENT_BODY" == *"/auto-preview"* ]]; then
+          elif [[ "$BODY" == *"/preview"* || "$BODY" == *"/auto-preview"* ]]; then
             TRIGGERED="true"
           fi
 
           echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
-          echo "Triggered: $TRIGGERED"
 
+      # State A: Idle Dashboard (Create or Reset)
       - name: Initialize / Reset Bot Comment (State A)
         if: steps.fc.outputs.comment-id == '' || steps.check_trigger.outputs.triggered != 'true'
         id: init_comment
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
+          issue-number: ${{ steps.pr_info.outputs.number }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
@@ -73,106 +102,90 @@ jobs:
             - [ ] 🚀 Click here to deploy Live Tauri Preview Session
 
             **Status:** `Idle` 😴
+
+            > [!TIP]
+            > Click the checkbox above or comment `/preview` to trigger a live, interactive preview session of this PR.
           edit-mode: replace
-
-      - name: Set Comment ID
-        id: set_comment_id
-        run: |
-          COMMENT_ID="${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}"
-          echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
-
-      - name: Permission Guard
-        run: |
-          SENDER_ASSOC="${{ github.event.sender.author_association }}"
-          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
-            echo "::error::Unauthorized user association: $SENDER_ASSOC. Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
-            exit 1
-          fi
 
       - name: Stop if not triggered
         if: steps.check_trigger.outputs.triggered != 'true'
         run: |
-          echo "Workflow was not triggered by checkbox or keyword. Hanging up."
+          echo "Workflow not triggered. Standing by."
           exit 0
 
-      - name: Resolve PR Head SHA
-        id: resolve_sha
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
-            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-          else
-            # For issue_comment, we need to fetch the PR head SHA via gh CLI
-            PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
-            echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ steps.resolve_sha.outputs.sha }}
-          persist-credentials: false
-
-      - name: Update Comment to State B (Pre-Flight Checks)
+      # State B: Pre-Flight (Updating UI)
+      - name: Update Comment (State B)
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
-          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
+          comment-id: ${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
 
             - [x] 🚀 Click here to deploy Live Tauri Preview Session
 
-            **Status:** `Pre-Flight Checks` 🔍 (Verifying CI compliance...)
+            **Status:** `Pre-Flight Checks` 🔍 (Verifying upstream CI compliance...)
           edit-mode: replace
 
+      # Secure Status Guard: Do not build if tests/linters are failing
       - name: Status Check Guard
         env:
           GH_TOKEN: ${{ github.token }}
-          COMMIT_SHA: ${{ steps.resolve_sha.outputs.sha }}
+          COMMIT_SHA: ${{ steps.pr_info.outputs.sha }}
         run: |
           echo "Checking status of commit $COMMIT_SHA..."
           MAX_ATTEMPTS=30
-          WAIT_INTERVAL=20
-
           for ((i=1; i<=$MAX_ATTEMPTS; i++)); do
+            # Check combined status (classic statuses)
             STATUS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/status)
             STATE=$(echo "$STATUS_JSON" | jq -r '.state')
-            echo "Attempt $i: Combined state is $STATE"
 
-            if [[ "$STATE" == "success" ]]; then
-              echo "All CI checks passed."
-              exit 0
-            elif [[ "$STATE" == "failure" ]]; then
-              echo "::error::CI checks failed for this commit. Aborting preview."
-              exit 1
-            fi
-
+            # Check check-runs (modern Actions/Apps)
             CHECKS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs)
-            FAILED_CHECKS=$(echo "$CHECKS_JSON" | jq -r '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .name')
 
-            if [[ -n "$FAILED_CHECKS" ]]; then
-              echo "::error::Failing check runs detected: $FAILED_CHECKS"
-              exit 1
+            # If any check has failed, we abort
+            if echo "$CHECKS_JSON" | jq -e '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out")' > /dev/null || [[ "$STATE" == "failure" ]]; then
+               echo "::error::CI checks failed for this commit. Aborting preview to save resources."
+               exit 1
             fi
 
-            PENDING_CHECKS=$(echo "$CHECKS_JSON" | jq -r '.check_runs[] | select(.status != "completed" and .name != "Live Tauri Preview") | .name')
-            if [[ -z "$PENDING_CHECKS" && "$STATE" != "pending" ]]; then
-               echo "Checks completed with non-failure states."
-               exit 0
+            # If all checks passed
+            if [[ "$STATE" == "success" ]]; then
+              echo "Classic status checks passed."
+              # Also ensure no pending checks in check-runs (excluding ourselves)
+              PENDING=$(echo "$CHECKS_JSON" | jq -r '.check_runs[] | select(.status != "completed" and .name != "Live Tauri Preview") | .name')
+              if [[ -z "$PENDING" ]]; then
+                echo "All check-runs completed."
+                exit 0
+              fi
             fi
-            echo "Waiting for checks to complete..."
-            sleep $WAIT_INTERVAL
+
+            echo "Attempt $i/$MAX_ATTEMPTS: Checks still pending... Waiting 20s."
+            sleep 20
           done
           echo "::error::Timed out waiting for CI checks to complete."
           exit 1
+
+      # State C: Compiling (Updating UI)
+      - name: Update Comment (State C)
+        if: success()
+        uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}
+          body: |
+            <!-- tauri-preview-bot-marker -->
+            ## 🚀 Tauri Live Preview
+
+            - [x] 🚀 Click here to deploy Live Tauri Preview Session
+
+            **Status:** `Compiling` ⚙️ (Active system processing and dependency loading...)
+          edit-mode: replace
 
       - name: Handle Guard Failure
         if: failure()
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
-          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
+          comment-id: ${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
@@ -182,18 +195,12 @@ jobs:
             **Status:** `Failed` ❌ (Upstream CI checks are failing or timed out. Please fix them before previewing.)
           edit-mode: replace
 
-      - name: Update Comment to State C (Compiling)
-        uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
+      # Workspace Preparation
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
-          body: |
-            <!-- tauri-preview-bot-marker -->
-            ## 🚀 Tauri Live Preview
-
-            - [x] 🚀 Click here to deploy Live Tauri Preview Session
-
-            **Status:** `Compiling` ⚙️ (Active system processing and dependency loading...)
-          edit-mode: replace
+          ref: ${{ steps.pr_info.outputs.sha }}
+          persist-credentials: false
 
       - name: Install System Dependencies
         run: |
@@ -204,29 +211,21 @@ jobs:
             libayatana-appindicator3-dev librsvg2-dev \
             xvfb x11vnc novnc websockify
 
+      # Hyper-Fast Cache Tuning
+      # -----------------------
       - name: Setup Node.js
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 20
-
-      - name: Node Modules Cache
-        uses: actions/cache@1bd1e32a3bdc453d9f5ad3573a1d93d92243540 # v4.2.0
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          cache: 'npm'
 
       - name: Vite Cache
         uses: actions/cache@1bd1e32a3bdc453d9f5ad3573a1d93d92243540 # v4.2.0
         with:
           path: node_modules/.cache
-          key: ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json', '**/vite.config.ts') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-vite-${{ hashFiles('**/package-lock.json', '**/vite.config.ts') }}
           restore-keys: |
-            ${{ runner.os }}-vite-
-
-      - name: Install Node Dependencies
-        run: npm ci
+            ${{ runner.os }}-${{ runner.arch }}-vite-
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -234,16 +233,33 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@54e2af0a8339c0435fa1de94002eab349a2f15ef # v2.7.3
         with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
 
-      - name: Build wapp-base sidecar (Debug)
+      - name: Build Artifact Cache
+        uses: actions/cache@1bd1e32a3bdc453d9f5ad3573a1d93d92243540 # v4.2.0
+        with:
+          path: |
+            src-tauri/target
+            wapp-base/src-tauri/target
+          key: ${{ runner.os }}-${{ runner.arch }}-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-target-
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      # Build Sidecar and App
+      - name: Compile Native Components
         run: |
+          # Build wapp-base sidecar
+          cd wapp-base/src-tauri
           cargo build
-          mkdir -p src-tauri/bin
-          cp target/debug/wapp-base ../src-tauri/bin/wapp-base-linux
-        working-directory: wapp-base/src-tauri
+          mkdir -p ../../src-tauri/bin
+          cp target/debug/wapp-base ../../src-tauri/bin/wapp-base-linux
 
-      - name: Configure Headless Display Services
+      # Headless Display Virtualization & Ingress Routing
+      # ------------------------------------------------
+      - name: Start Virtual Framebuffer
         run: |
           Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
           echo "DISPLAY=:99" >> $GITHUB_ENV
@@ -252,38 +268,38 @@ jobs:
           /usr/bin/novnc_proxy --vnc localhost:5900 --listen 6080 > /dev/null 2>&1 &
           sleep 2
 
-      - name: Start Tauri Application
+      - name: Launch Tauri (Headless)
         run: |
           DISPLAY=:99 npm run tauri dev -- --no-watch > tauri_dev.log 2>&1 &
-          MAX_RETRIES=60
-          for ((i=1; i<=$MAX_RETRIES; i++)); do
+          # Wait for Vite and Tauri to be ready
+          for i in {1..60}; do
             if grep -q "VITE" tauri_dev.log && grep -q "Ready" tauri_dev.log; then
-              echo "Tauri dev server is ready."
+              echo "Frontend and Backend are ready."
               break
             fi
-            echo "Waiting for Tauri dev server... ($i/$MAX_RETRIES)"
+            echo "Waiting for app initialization... ($i/60)"
             sleep 5
           done
 
-      - name: Start Dynamic Tunneling (State D)
+      - name: Establish Secure Ingress Tunnel (bore)
         id: tunnel
         run: |
           sudo curl -Ls https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | sudo tar zx -C /usr/local/bin
           bore local 6080 --to bore.pub > bore.log 2>&1 &
           sleep 5
-          BORE_OUTPUT=$(cat bore.log)
-          echo "$BORE_OUTPUT"
-          REMOTE_PORT=$(echo "$BORE_OUTPUT" | grep -oP 'bore.pub:\K\d+')
+          REMOTE_PORT=$(grep -oP 'bore.pub:\K\d+' bore.log)
           if [[ -z "$REMOTE_PORT" ]]; then
-            echo "::error::Failed to establish tunnel."
+            echo "::error::Failed to establish tunnel. Check bore.log"
+            cat bore.log
             exit 1
           fi
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
 
-      - name: Update Comment to State D (Active Stream Link)
+      # State D: Active Stream Link (Updating UI)
+      - name: Update Comment (State D)
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
-          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
+          comment-id: ${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
@@ -295,18 +311,23 @@ jobs:
             ### 📺 Live Session Link
             **[Click here to open the Live Preview](${{ steps.tunnel.outputs.url }})**
 
-            **Metadata:**
-            - **Commit SHA:** `${{ steps.resolve_sha.outputs.sha }}`
-            - **Display:** 1280x1024 (Virtual Framebuffer)
+            > [!IMPORTANT]
+            > This session will automatically terminate in 30 minutes.
+            > Closing the PR or unchecking the checkbox will also stop the server.
+
+            **Technical Details:**
+            - **Commit SHA:** `${{ steps.pr_info.outputs.sha }}`
+            - **Environment:** Headless Ubuntu (Xvfb :99)
+            - **Resolution:** 1280x1024
 
             **📱 Tablet / Viewport Instructions:**
-            1. Open the link above in your browser.
-            2. If prompted, click "Connect".
-            3. Use the sidebar menu in noVNC to toggle "Scaling" if the viewport doesn't fit your screen.
-            4. To stop the session, uncheck the checkbox at the top of this comment or close the PR.
+            1. Access the URL above.
+            2. Click **"Connect"** if prompted.
+            3. Use the noVNC sidebar (left side) to enable **"Scaling"** or **"Full Screen"** for the best experience.
           edit-mode: replace
 
-      - name: Keep Alive
+      - name: Session Keep-Alive
         run: |
-          echo "Preview session is active. Waiting 30 minutes before automatic termination..."
+          echo "Preview session is active at ${{ steps.tunnel.outputs.url }}"
+          echo "Waiting for 30 minutes before shutdown..."
           sleep 1800
