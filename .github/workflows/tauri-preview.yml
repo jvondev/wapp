@@ -10,6 +10,7 @@ on:
     types: [opened, edited, synchronized, reopened, ready_for_review]
   issue_comment:
     types: [created, edited]
+  workflow_dispatch:
 
 # Enterprise Security Architecture: Zero-Trust Guardrails
 # ------------------------------------------------------
