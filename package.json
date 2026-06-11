@@ -39,7 +39,7 @@
   "devDependencies": {
     "@jvondev/wapp-base": "1.0.2",
     "@tauri-apps/cli": "^2",
-    "typescript": "~5.6.2",
+    "typescript": "~6.0.3",
     "vite": "^6.0.3",
     "vite-plugin-solid": "^2.11.0"
   },
