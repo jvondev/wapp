@@ -1,7 +1,7 @@
 name: Tauri Preview
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, synchronized, reopened, ready_for_review]
   issue_comment:
     types: [created, edited]
@@ -16,14 +16,14 @@ permissions:
 jobs:
   preview:
     name: Live Tauri Preview
-    # Job-level guard to ensure we only run on open PRs or PR-related comments
+    # Job-level guard: only run on open PRs or comments on open PRs
     if: >
       (github.event.pull_request && github.event.pull_request.state == 'open') ||
       (github.event.issue.pull_request && github.event.issue.state == 'open')
     runs-on: ubuntu-latest
     concurrency:
-      # Ensures only one preview session runs per PR. New /preview commands will cancel stale ones.
-      group: tauri-preview-${{ github.event.pull_request.number || github.event.issue.number }}
+      # Use PR number to ensure one session per PR. New /preview triggers cancel old ones.
+      group: tauri-preview-${{ github.event.number || github.event.issue.number }}
       cancel-in-progress: true
     steps:
       - name: Permission Guard
@@ -36,8 +36,14 @@ jobs:
             exit 1
           fi
 
+      - name: Debug Event Info
+        run: |
+          echo "Event Name: \"${{ github.event_name }}\""
+          echo "Event Action: \"${{ github.event_action }}\""
+          echo "PR Number: \"${{ github.event.pull_request.number || github.event.issue.number }}\""
+
       - name: Find Bot Comment
-        uses: peter-evans/find-comment@3eae4d37986fb5ba85bfd4246944358a9e0839e9 # v3.1.0
+        uses: peter-evans/find-comment@v3
         id: fc
         with:
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -50,17 +56,17 @@ jobs:
           EVENT_BODY: ${{ github.event.comment.body || github.event.pull_request.body }}
         run: |
           TRIGGERED="false"
-          # Strictly detect /preview slash command. Supports multiline and various placements.
+          # Robust slash command detection. Environment variables prevent Exit Code 127.
           if echo "$EVENT_BODY" | grep -qi "/preview"; then
             TRIGGERED="true"
           fi
           echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
           echo "Triggered: $TRIGGERED"
 
-      - name: Initialize / Reset Bot Comment
-        # Always run to keep the bot comment in a stable, predictable state (Idle or Preparing)
+      - name: Initialize / Update Bot Comment
+        # Provides immediate feedback and establishes a stable comment ID.
         id: init_comment
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -70,7 +76,7 @@ jobs:
 
             **Status:** ${{ steps.check_trigger.outputs.triggered == 'true' && '`Preparing environment...` ⚙️' || '`Idle` 😴' }}
 
-            ${{ steps.check_trigger.outputs.triggered != 'true' && '*Tip: Comment `/preview` to deploy a live session.*' || '' }}
+            ${{ steps.check_trigger.outputs.triggered != 'true' && '*Tip: Add `/preview` to the PR description or comment `/preview` to deploy.*' || '' }}
           edit-mode: replace
 
       - name: Set Comment ID
@@ -82,7 +88,7 @@ jobs:
       - name: Stop if not triggered
         if: steps.check_trigger.outputs.triggered != 'true'
         run: |
-          echo "Workflow was not triggered by '/preview'. Hanging up."
+          echo "Workflow was not triggered by '/preview' keyword. Hanging up."
           exit 0
 
       - name: Resolve PR Head SHA
@@ -90,22 +96,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           else
-            # For issue_comment, we fetch the PR head SHA via gh CLI
+            # For issue_comment, fetch the PR head SHA via gh CLI
             PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
             echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
         with:
           ref: ${{ steps.resolve_sha.outputs.sha }}
           persist-credentials: false
 
       - name: Update Comment (Pre-Flight Checks)
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -125,9 +131,11 @@ jobs:
           WAIT_INTERVAL=20
 
           for ((i=1; i<=$MAX_ATTEMPTS; i++)); do
-            # Combined status check
+            # Combined status state
             STATUS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/status)
             STATE=$(echo "$STATUS_JSON" | jq -r '.state')
+            echo "Attempt $i: Combined state is $STATE"
+
             if [[ "$STATE" == "success" ]]; then
               echo "All CI checks passed."
               exit 0
@@ -157,7 +165,7 @@ jobs:
 
       - name: Handle Guard Failure
         if: failure() && steps.set_comment_id.outputs.comment_id != ''
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -170,7 +178,7 @@ jobs:
           edit-mode: replace
 
       - name: Update Comment (Compiling)
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -190,36 +198,21 @@ jobs:
             xvfb x11vnc novnc websockify
 
       - name: Setup Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Node Modules Cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Vite Cache
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: node_modules/.cache
-          key: ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json', '**/vite.config.ts') }}
-          restore-keys: |
-            ${{ runner.os }}-vite-
+          cache: 'npm'
 
       - name: Install Node Dependencies
         run: npm ci
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
 
       - name: Rust Cache
-        uses: swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2.7.5
+        uses: swatinem/rust-cache@v2
         with:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
 
@@ -268,7 +261,7 @@ jobs:
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
 
       - name: Update Comment (Active)
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
