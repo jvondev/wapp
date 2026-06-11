@@ -109,7 +109,7 @@ pub async fn get_site_info(url: String) -> Result<SiteInfo, String> {
         {
             if let Ok(bytes) = icon_res.bytes().await {
                 let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                let mime = guess_mime(&icon_url);
+                let mime = guess_mime(icon_url);
                 icon = Some(format!("data:{};base64,{}", mime, b64));
             }
         }

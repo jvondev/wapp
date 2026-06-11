@@ -173,9 +173,8 @@ pub fn save_wapps(app_handle: AppHandle, wapps: Vec<WappConfig>) -> Result<(), S
     Ok(())
 }
 
-#[tauri::command]
-pub fn build_wapp(
-    app_handle: AppHandle,
+#[derive(serde::Deserialize)]
+pub struct BuildWappInput {
     id: String,
     name: String,
     url: String,
@@ -187,13 +186,16 @@ pub fn build_wapp(
     created_at: String,
     maximize: bool,
     os: Vec<String>,
-) -> Result<(), String> {
+}
+
+#[tauri::command]
+pub fn build_wapp(app_handle: AppHandle, input: BuildWappInput) -> Result<(), String> {
     let app_handle_clone = app_handle.clone();
-    let id_clone = id.clone();
-    let name_clone = name.clone();
-    let url_clone = url.clone();
-    let category_clone = category.clone();
-    let created_at_clone = created_at.clone();
+    let id_clone = input.id.clone();
+    let name_clone = input.name.clone();
+    let url_clone = input.url.clone();
+    let category_clone = input.category.clone();
+    let created_at_clone = input.created_at.clone();
 
     std::thread::spawn(move || {
         let workspace_dir = get_workspace_dir(&app_handle_clone);
@@ -257,11 +259,11 @@ pub fn build_wapp(
             let runtime_config = serde_json::json!({
                 "url": url_clone,
                 "name": name_clone,
-                "icon": icon.clone(),
-                "width": width,
-                "height": height,
-                "hide_title_bar": hide_title_bar,
-                "maximize": maximize
+                "icon": input.icon.clone(),
+                "width": input.width,
+                "height": input.height,
+                "hide_title_bar": input.hide_title_bar,
+                "maximize": input.maximize
             });
             let _ = fs::write(
                 &config_path,
@@ -269,7 +271,7 @@ pub fn build_wapp(
             );
 
             // Apply icon based on target OS
-            if let Some(ref icon_data) = icon {
+            if let Some(ref icon_data) = input.icon {
                 match apply_icon_cross_platform(
                     &final_exe_path,
                     icon_data,
@@ -302,11 +304,11 @@ pub fn build_wapp(
             id: id_str.clone(),
             name: name_clone.clone(),
             url: url_clone.clone(),
-            icon: icon.clone(),
-            width,
-            height,
-            hide_title_bar,
-            maximize,
+            icon: input.icon.clone(),
+            width: input.width,
+            height: input.height,
+            hide_title_bar: input.hide_title_bar,
+            maximize: input.maximize,
             category: category_clone.clone(),
             created_at: created_at_clone.clone(),
             path: path_str.clone(),

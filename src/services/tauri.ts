@@ -32,7 +32,7 @@ export const tauriService = {
     createdAt: string;
     maximize: boolean;
     os: string[];
-  }) => invoke<void>("build_wapp", args),
+  }) => invoke<void>("build_wapp", { input: args }),
 
   launchWapp: (path: string) => invoke<void>("launch_wapp", { path }),
 
