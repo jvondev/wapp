@@ -20,11 +20,6 @@ if (process.env.CI) {
   process.exit(0);
 }
 
-if (process.env.CI) {
-  console.log('⏭️  Skipping local wapp-base build in CI.');
-  process.exit(0);
-}
-
 console.log('🏗️  Preparing LOCAL wapp-base...');
 
 // 1. Sync version with root package.json

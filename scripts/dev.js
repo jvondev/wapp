@@ -174,12 +174,25 @@ if (isLocalMode) {
       console.warn(`⚠️  Recursive watch failed: ${e.message}`);
       console.log('Falling back to non-recursive watch (Cargo.toml changes only). Please check your OS limits.');
       // Basic fallback for non-recursive systems
+      let fallbackDebounceTimer = null;
       fs.watch(watchDir, (event, filename) => {
           if (filename === 'Cargo.toml') {
             // Trigger rebuild for Cargo.toml only in root
-             console.log(`\n📝 Root config change: ${filename}. Rebuilding...`);
-             spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
-             startTauri();
+            if (fallbackDebounceTimer) clearTimeout(fallbackDebounceTimer);
+
+            fallbackDebounceTimer = setTimeout(() => {
+                console.log(`\n📝 Root config change: ${filename}. Rebuilding...`);
+                console.log('--------------------------------------------------');
+                const rebuild = spawnSync('node', ['scripts/prepare-base.js', '--debug'], { stdio: 'inherit', shell: true });
+                console.log('--------------------------------------------------');
+
+                if (rebuild.status === 0) {
+                    console.log('✅ Rebuild successful. Restarting app...');
+                    startTauri();
+                } else {
+                    console.error('❌ Rebuild failed. Fix the errors above to resume.');
+                }
+            }, 500);
           }
       });
     }
