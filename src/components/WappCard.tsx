@@ -1,27 +1,12 @@
-import { Component, Show } from "solid-js";
-import { Play, Trash2, Loader2 } from "lucide-solid";
+import { Component, Show, createSignal } from "solid-js";
+import { Play, MoreHorizontal, Loader2, Edit2, Trash2, ExternalLink } from "lucide-solid";
 import { WappConfig } from "../types";
+import { ContextMenu } from "./ContextMenu";
 
 export const SkeletonCard: Component = () => (
-  <div class="wapp-card" style="pointer-events: none; gap: 1rem;">
-    <div style="display: flex; align-items: center; gap: 0.625rem;">
-      <div class="skeleton-shimmer" style="width: 32px; height: 32px; border-radius: 6px; flex-shrink: 0;" />
-      <div style="display: flex; flex-direction: column; gap: 0.375rem; flex: 1; overflow: hidden;">
-        <div class="skeleton-shimmer" style="height: 12px; width: 65%; border-radius: 4px;" />
-        <div class="skeleton-shimmer" style="height: 10px; width: 45%; border-radius: 4px;" />
-      </div>
-    </div>
-    <div>
-      <div class="skeleton-shimmer" style="height: 18px; width: 40px; border-radius: 4px;" />
-    </div>
-    <div style="border-top: 1px solid hsl(var(--border)); padding-top: 0.625rem; display: flex; justify-content: space-between; align-items: center;">
-      <div class="skeleton-shimmer" style="height: 10px; width: 50px; border-radius: 4px;" />
-      <div style="display: flex; gap: 0.35rem;">
-        <div class="skeleton-shimmer" style="width: 24px; height: 24px; border-radius: 4px;" />
-        <div class="skeleton-shimmer" style="width: 24px; height: 24px; border-radius: 4px;" />
-        <div class="skeleton-shimmer" style="width: 24px; height: 24px; border-radius: 4px;" />
-      </div>
-    </div>
+  <div class="wapp-card skeleton" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; border: none; background: transparent; box-shadow: none;">
+    <div class="skeleton-shimmer" style="width: 80px; height: 80px; border-radius: 20px;" />
+    <div class="skeleton-shimmer" style="height: 12px; width: 60px; border-radius: 4px;" />
   </div>
 );
 
@@ -33,37 +18,64 @@ interface WappCardProps {
 }
 
 export const WappCard: Component<WappCardProps> = (props) => {
+  const [contextMenu, setContextMenu] = createSignal<{ x: number, y: number } | null>(null);
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const menuOptions = [
+    { label: "Launch App", icon: Play, onClick: () => props.onLaunch(props.wapp.path) },
+    { label: "Edit Config", icon: Edit2, onClick: () => props.onEdit(props.wapp) },
+    { label: "View Source", icon: ExternalLink, onClick: () => window.open(props.wapp.url, '_blank', 'noopener,noreferrer') },
+    { label: "Delete Wapp", icon: Trash2, onClick: () => props.onDelete(props.wapp.id), variant: "danger" as const },
+  ];
+
   return (
-    <div class="wapp-card">
-      <div class="wapp-card-header">
-        <div class="wapp-icon">
-          <Show when={props.wapp.icon} fallback={props.wapp.name.charAt(0)}>
-            <img src={props.wapp.icon!} style="width: 100%; height: 100%; border-radius: 4px; object-fit: contain;" />
-          </Show>
+    <>
+      <div
+        class="wapp-card-os"
+        onClick={() => props.onLaunch(props.wapp.path)}
+        onContextMenu={handleContextMenu}
+      >
+        <div class="wapp-tile">
+          <div class="wapp-icon-container">
+            <Show when={props.wapp.icon} fallback={<div class="wapp-icon-fallback">{props.wapp.name.charAt(0)}</div>}>
+              <img src={props.wapp.icon ?? undefined} class="wapp-icon-img" />
+            </Show>
+            <div class="wapp-tile-overlay">
+              <Play size={24} fill="currentColor" />
+            </div>
+          </div>
+          <div class="wapp-tile-info">
+            <span class="wapp-tile-name">{props.wapp.name}</span>
+            <span class="wapp-tile-category">{props.wapp.category}</span>
+          </div>
         </div>
-        <div class="wapp-info">
-          <span class="wapp-name">{props.wapp.name}</span>
-          <span class="wapp-url">{props.wapp.url.replace("https://", "").replace("http://", "")}</span>
-        </div>
+        <button
+          class="wapp-tile-more"
+          onClick={(e) => {
+            e.stopPropagation();
+            const rect = e.currentTarget.getBoundingClientRect();
+            setContextMenu({ x: rect.left, y: rect.bottom + 5 });
+          }}
+        >
+          <MoreHorizontal size={14} />
+        </button>
       </div>
-      <div class="wapp-card-body">
-        <span class={`wapp-badge ${props.wapp.category.toLowerCase()}`}>{props.wapp.category}</span>
-      </div>
-      <div class="wapp-card-footer">
-        <span class="wapp-date">{props.wapp.created_at}</span>
-        <div class="wapp-actions">
-          <button class="btn-icon" onClick={() => props.onLaunch(props.wapp.path)} title="Launch App">
-            <Play size={12} />
-          </button>
-          <button class="btn-icon" onClick={() => props.onEdit(props.wapp)} title="Edit App">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-          </button>
-          <button class="btn-icon delete" onClick={() => props.onDelete(props.wapp.id)} title="Delete App">
-            <Trash2 size={12} />
-          </button>
-        </div>
-      </div>
-    </div>
+
+      <Show when={contextMenu()}>
+        {(pos) => (
+          <ContextMenu
+            x={pos().x}
+            y={pos().y}
+            options={menuOptions}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
+      </Show>
+    </>
   );
 };
 
@@ -77,28 +89,16 @@ interface LoadingCardProps {
 
 export const LoadingCard: Component<LoadingCardProps> = (props) => {
   return (
-    <div class="wapp-card loading">
-      <div class="wapp-card-header">
-        <div class="wapp-icon">
-          <Loader2 size={16} class="loading-spinner" />
+    <div class="wapp-card-os loading">
+      <div class="wapp-tile">
+        <div class="wapp-icon-container loading">
+          <Loader2 size={32} class="loading-spinner" />
+          <div class="loading-progress-ring" />
         </div>
-        <div class="wapp-info">
-          <span class="wapp-name">{props.name}</span>
-          <span class="wapp-url">{props.status}</span>
+        <div class="wapp-tile-info">
+          <span class="wapp-tile-name">{props.name}</span>
+          <span class="wapp-tile-status">{props.status}</span>
         </div>
-      </div>
-      <div class="wapp-card-body">
-         <span class="wapp-badge all">{props.category}</span>
-      </div>
-      <div class="wapp-card-footer">
-         <span class="wapp-date" style="color: #666; font-size: 0.6rem;">
-            {props.log?.substring(0, 30)}...
-         </span>
-         <Show when={props.status === "Build failed"}>
-            <button class="btn-icon delete" onClick={props.onCancel}>
-              <Trash2 size={12} />
-            </button>
-         </Show>
       </div>
     </div>
   );

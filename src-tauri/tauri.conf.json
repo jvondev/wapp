@@ -33,7 +33,8 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "bin/*"
+      "bin/*",
+      "base-bin/*"
     ]
   }
 }

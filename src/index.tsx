@@ -1,13 +1,31 @@
 import { render } from "solid-js/web";
 import App from "./App";
-import { AppStoreProvider } from "./store";
+import { AppStoreProvider, useAppStore } from "./store";
+import { JSX } from "solid-js";
+
+const StoreExposer = (props: { children: JSX.Element }) => {
+  const store = useAppStore();
+  // Safe exposure for debugging
+  Object.defineProperty(window, "__WAPP_STORE__", {
+    value: store,
+    configurable: true,
+    enumerable: false,
+    writable: true,
+  });
+  return props.children;
+};
 
 const root = document.getElementById("root");
 
 if (root) {
-  render(() => (
-    <AppStoreProvider>
-      <App />
-    </AppStoreProvider>
-  ), root);
+  render(
+    () => (
+      <AppStoreProvider>
+        <StoreExposer>
+          <App />
+        </StoreExposer>
+      </AppStoreProvider>
+    ),
+    root,
+  );
 }

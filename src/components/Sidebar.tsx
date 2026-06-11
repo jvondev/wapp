@@ -1,40 +1,60 @@
 import { Component } from "solid-js";
-import { Folder, Settings, Plus } from "lucide-solid";
+import { LayoutGrid, Plus, Sparkles } from "lucide-solid";
 import { useAppStore } from "../store";
+
+const SidebarLogo = () => (
+  <div class="sidebar-logo-container">
+    <div class="sidebar-logo">w</div>
+    <span class="sidebar-brand-name">wapp</span>
+  </div>
+);
+
+const ProTip = () => (
+  <div class="sidebar-footer">
+    <div class="pro-tip-box">
+      <p class="pro-tip-title">Pro Tip</p>
+      <p class="pro-tip-text">Press <kbd class="kbd-hint">⌘ K</kbd> to quickly create a new wapp.</p>
+    </div>
+  </div>
+);
 
 export const Sidebar: Component = () => {
   const [state, actions] = useAppStore();
 
   return (
     <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-logo">w</div>
-        <span class="brand-name">wapp</span>
-      </div>
+      <SidebarLogo />
 
-      <button class="sidebar-add-btn" onClick={() => actions.setShowAddModal(true)}>
+      <button
+        class="sidebar-btn-primary"
+        onClick={() => actions.setShowAddModal(true)}
+      >
         <Plus size={18} />
-        New Wapp
+        <span>New Wapp</span>
       </button>
 
+      <div class="sidebar-label">Library</div>
+
       <nav class="nav-group">
-        <button 
-          class="nav-item" 
+        <button
+          class="nav-item"
           classList={{ active: state.activeTab === "all" }}
           onClick={() => actions.setActiveTab("all")}
         >
-          <Folder size={16} />
-          All Wapps
+          <LayoutGrid size={18} />
+          <span>All Apps</span>
         </button>
-        <button 
-          class="nav-item" 
+        <button
+          class="nav-item"
           classList={{ active: state.activeTab === "settings" }}
           onClick={() => actions.setActiveTab("settings")}
         >
-          <Settings size={16} />
-          Setup Guide
+          <Sparkles size={18} />
+          <span>Setup Guide</span>
         </button>
       </nav>
+
+      <ProTip />
     </aside>
   );
 };

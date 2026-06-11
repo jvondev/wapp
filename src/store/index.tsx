@@ -25,19 +25,29 @@ interface AppState {
 
 const STORAGE_KEY = "wapp_prefs";
 
+const getInitialTab = (): "all" | "settings" => {
+  const tab = localStorage.getItem(`${STORAGE_KEY}_tab`);
+  return tab === "settings" ? "settings" : "all";
+};
+
+const getInitialTheme = (): "light" | "dark" => {
+  const theme = localStorage.getItem(`${STORAGE_KEY}_theme`);
+  return theme === "dark" ? "dark" : "light";
+};
+
 const initialState: AppState = {
   wapps: [],
   activeBuilds: {},
-  activeTab: (localStorage.getItem(`${STORAGE_KEY}_tab`) as any) || "all",
+  activeTab: getInitialTab(),
   filterCategory: localStorage.getItem(`${STORAGE_KEY}_cat`) || "All",
   showAddModal: false,
   notifications: [],
   editingWapp: null,
-  theme: (localStorage.getItem(`${STORAGE_KEY}_theme`) as any) || "light",
+  theme: getInitialTheme(),
   isLoading: true,
 };
 
-function createAppStore() {
+const createAppStore = () => {
   const [state, setState] = createStore<AppState>(initialState);
 
   // Actions
@@ -152,7 +162,8 @@ function createAppStore() {
       } catch (err) {
         actions.addNotification(`Failed to save: ${err}`, "error");
       }
-    }
+    },
+    setWapps: (wapps: WappConfig[]) => setState("wapps", wapps),
   };
 
   // Listeners

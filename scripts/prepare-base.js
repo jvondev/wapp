@@ -10,6 +10,11 @@ import path from 'path';
 const isWindows = process.platform === 'win32';
 const binName = isWindows ? 'wapp-base.exe' : 'wapp-base';
 
+if (process.env.CI) {
+  console.log('⏭️  Skipping local wapp-base build in CI.');
+  process.exit(0);
+}
+
 console.log('🏗️  Preparing LOCAL wapp-base...');
 
 // 1. Sync version with root package.json
