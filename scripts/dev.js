@@ -92,6 +92,15 @@ function startTauri() {
 
 if (isLocalMode) {
   console.log('🏗️  LOCAL mode active (found local source).');
+
+  // Robustness: Check if cargo is installed
+  const hasCargo = spawnSync('cargo', ['--version']).status === 0;
+  if (!hasCargo) {
+    console.error('\x1b[31m❌ Error: Local source found but "cargo" is not installed.\x1b[0m');
+    console.log('Either install Rust (https://rustup.rs/) or run with --cloud to use pre-built binaries.');
+    process.exit(1);
+  }
+
   checkVersions();
 
   console.log('🔨 Performing initial wapp-base build...');

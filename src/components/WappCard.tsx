@@ -39,7 +39,7 @@ export const WappCard: Component<WappCardProps> = (props) => {
           if (parsed.protocol === "http:" || parsed.protocol === "https:") {
             window.open(normalized, '_blank', 'noopener,noreferrer');
           }
-        } catch (e) {
+        } catch {
           console.error("Invalid URL:", normalized);
         }
       }
