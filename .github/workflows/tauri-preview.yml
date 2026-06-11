@@ -2,13 +2,9 @@ name: Tauri Preview
 
 on:
   pull_request_target:
-    types: [opened, edited, synchronized, reopened]
+    types: [opened, edited, synchronized, reopened, ready_for_review]
   issue_comment:
     types: [created, edited]
-
-concurrency:
-  group: tauri-preview-${{ github.event.number || github.event.issue.number }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -24,34 +20,10 @@ jobs:
       (github.event.pull_request || github.event.issue.pull_request) &&
       (github.event.pull_request.state == 'open' || github.event.issue.state == 'open')
     runs-on: ubuntu-latest
+    concurrency:
+      group: tauri-preview-${{ github.event.number || github.event.issue.number }}
+      cancel-in-progress: true
     steps:
-      - name: Permission Guard
-        run: |
-          SENDER_ASSOC="${{ github.event.sender.author_association }}"
-          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
-            echo "::error::Unauthorized user association: $SENDER_ASSOC. Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
-            exit 1
-          fi
-
-      - name: Resolve PR Head SHA
-        id: resolve_sha
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
-            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-          else
-            # For issue_comment, we need to fetch the PR head SHA via gh CLI
-            PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
-            echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Checkout Code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ steps.resolve_sha.outputs.sha }}
-          persist-credentials: false
-
       - name: Find Bot Comment
         uses: peter-evans/find-comment@3eae4d37986fb5ba85bfd4246944358a9e0839e9 # v3.1.0
         id: fc
@@ -76,7 +48,8 @@ jobs:
           echo "Triggered: $TRIGGERED"
 
       - name: Initialize / Reset Bot Comment (State A)
-        if: steps.check_trigger.outputs.triggered != 'true' || steps.fc.outputs.comment-id == ''
+        if: steps.fc.outputs.comment-id == '' || steps.check_trigger.outputs.triggered != 'true'
+        id: init_comment
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
@@ -90,16 +63,49 @@ jobs:
             **Status:** `Idle` 😴
           edit-mode: replace
 
+      - name: Set Comment ID
+        id: set_comment_id
+        run: |
+          COMMENT_ID="${{ steps.fc.outputs.comment-id || steps.init_comment.outputs.comment-id }}"
+          echo "comment_id=$COMMENT_ID" >> $GITHUB_OUTPUT
+
+      - name: Permission Guard
+        run: |
+          SENDER_ASSOC="${{ github.event.sender.author_association }}"
+          if [[ ! " OWNER MEMBER COLLABORATOR " =~ " $SENDER_ASSOC " ]]; then
+            echo "::error::Unauthorized user association: $SENDER_ASSOC. Only OWNER, MEMBER, or COLLABORATOR can trigger previews."
+            exit 1
+          fi
+
       - name: Stop if not triggered
         if: steps.check_trigger.outputs.triggered != 'true'
         run: |
           echo "Workflow was not triggered by checkbox or keyword. Hanging up."
           exit 0
 
+      - name: Resolve PR Head SHA
+        id: resolve_sha
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request_target" ]]; then
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          else
+            # For issue_comment, we need to fetch the PR head SHA via gh CLI
+            PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
+            echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.resolve_sha.outputs.sha }}
+          persist-credentials: false
+
       - name: Update Comment to State B (Pre-Flight Checks)
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
+          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
@@ -115,18 +121,12 @@ jobs:
           COMMIT_SHA: ${{ steps.resolve_sha.outputs.sha }}
         run: |
           echo "Checking status of commit $COMMIT_SHA..."
-
-          # Wait for other checks to complete or fail
-          # We check the combined status. 'success' means all passed. 'failure' means at least one failed.
-          # 'pending' means some are still running.
-
           MAX_ATTEMPTS=30
           WAIT_INTERVAL=20
 
           for ((i=1; i<=$MAX_ATTEMPTS; i++)); do
             STATUS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/status)
             STATE=$(echo "$STATUS_JSON" | jq -r '.state')
-
             echo "Attempt $i: Combined state is $STATE"
 
             if [[ "$STATE" == "success" ]]; then
@@ -137,8 +137,6 @@ jobs:
               exit 1
             fi
 
-            # If there are NO statuses yet, jq returns null or state is 'pending'
-            # We also check Check Runs as they are different from Statuses
             CHECKS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs)
             FAILED_CHECKS=$(echo "$CHECKS_JSON" | jq -r '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .name')
 
@@ -149,16 +147,12 @@ jobs:
 
             PENDING_CHECKS=$(echo "$CHECKS_JSON" | jq -r '.check_runs[] | select(.status != "completed" and .name != "Live Tauri Preview") | .name')
             if [[ -z "$PENDING_CHECKS" && "$STATE" != "pending" ]]; then
-               # If everything is completed but not success/failure, it might be neutral or skipped
-               # We'll treat as success for now if nothing failed, but usually it should be 'success'
                echo "Checks completed with non-failure states."
                exit 0
             fi
-
             echo "Waiting for checks to complete..."
             sleep $WAIT_INTERVAL
           done
-
           echo "::error::Timed out waiting for CI checks to complete."
           exit 1
 
@@ -166,7 +160,7 @@ jobs:
         if: failure()
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
+          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
@@ -179,7 +173,7 @@ jobs:
       - name: Update Comment to State C (Compiling)
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
+          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
@@ -192,9 +186,8 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          # webkit2gtk-4.1-dev is required for Tauri 2.0, adding 4.0 hooks as requested if available
           sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev build-essential curl \
+            libwebkit2gtk-4.1-dev libwebkit2gtk-4.0-dev build-essential curl \
             libssl-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev \
             xvfb x11vnc novnc websockify
@@ -229,38 +222,27 @@ jobs:
       - name: Rust Cache
         uses: swatinem/rust-cache@54e2af0a8339c0435fa1de94002eab349a2f15ef # v2.7.3
         with:
-          # swatinem/rust-cache handles ~/.cargo and target/
-          # Deterministic key is handled internally but we can augment it
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
+
+      - name: Build wapp-base sidecar (Debug)
+        run: |
+          cargo build
+          mkdir -p src-tauri/bin
+          cp target/debug/wapp-base ../src-tauri/bin/wapp-base-linux
+        working-directory: wapp-base/src-tauri
 
       - name: Configure Headless Display Services
         run: |
-          # Start Xvfb
           Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
           echo "DISPLAY=:99" >> $GITHUB_ENV
-
-          # Wait for Xvfb to be ready
           sleep 3
-
-          # Start x11vnc
-          # -forever keeps it running after disconnect
-          # -nopw for no password (secured by tunnel)
           x11vnc -display :99 -forever -nopw -bg -listen localhost -xkb
-
-          # Start noVNC
-          # novnc_proxy is the standard command on Ubuntu for novnc package
-          # It connects to localhost:5900 and listens on 6080
           /usr/bin/novnc_proxy --vnc localhost:5900 --listen 6080 > /dev/null 2>&1 &
-
-          # Wait for services
           sleep 2
 
       - name: Start Tauri Application
         run: |
-          # npm run dev handles building the sidecar and starting vite+tauri
-          DISPLAY=:99 npm run dev > tauri_dev.log 2>&1 &
-
-          # Monitor log for startup
+          DISPLAY=:99 npm run tauri dev -- --no-watch > tauri_dev.log 2>&1 &
           MAX_RETRIES=60
           for ((i=1; i<=$MAX_RETRIES; i++)); do
             if grep -q "VITE" tauri_dev.log && grep -q "Ready" tauri_dev.log; then
@@ -274,36 +256,22 @@ jobs:
       - name: Start Dynamic Tunneling (State D)
         id: tunnel
         run: |
-          # Use 'bore' as the dynamic tunneling action block/service
-          # It's a simple, high-performance TCP tunnel
-          curl -Ls https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | sudo tar zx -C /usr/local/bin
-
-          # Start bore tunnel for noVNC port (6080)
-          # Redirect output to capture the assigned remote port
+          sudo curl -Ls https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | sudo tar zx -C /usr/local/bin
           bore local 6080 --to bore.pub > bore.log 2>&1 &
-
-          # Wait for tunnel to establish
           sleep 5
-
           BORE_OUTPUT=$(cat bore.log)
           echo "$BORE_OUTPUT"
-
-          # Extract the remote port
-          # Example output: "listening at bore.pub:12345"
           REMOTE_PORT=$(echo "$BORE_OUTPUT" | grep -oP 'bore.pub:\K\d+')
-
           if [[ -z "$REMOTE_PORT" ]]; then
             echo "::error::Failed to establish tunnel."
             exit 1
           fi
-
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
-          echo "Live link: http://bore.pub:$REMOTE_PORT"
 
       - name: Update Comment to State D (Active Stream Link)
         uses: peter-evans/create-or-update-comment@713454d665951624a595ef144fe48d0006734262 # v4.0.0
         with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
+          comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
@@ -313,7 +281,7 @@ jobs:
             **Status:** `Active` ✅
 
             ### 📺 Live Session Link
-            **[Click here to open the Live Preview]( ${{ steps.tunnel.outputs.url }} )**
+            **[Click here to open the Live Preview](${{ steps.tunnel.outputs.url }})**
 
             **Metadata:**
             - **Commit SHA:** `${{ steps.resolve_sha.outputs.sha }}`
@@ -328,8 +296,5 @@ jobs:
 
       - name: Keep Alive
         run: |
-          # Keep the job running for up to 30 minutes to allow for testing
-          # In a real scenario, this might be handled by a long-running service or
-          # by specific timeout logic.
           echo "Preview session is active. Waiting 30 minutes before automatic termination..."
           sleep 1800
