@@ -45,7 +45,7 @@ jobs:
           echo "PR Number: \"${{ github.event.pull_request.number || github.event.issue.number }}\""
 
       - name: Find Bot Comment
-        uses: peter-evans/find-comment@3eae4d37986fb5a8592848f6a574fdf654e61f9e # v3
+        uses: peter-evans/find-comment@3eae4d37986fb5986fa6ac04a82c0b75ce981078 # v3.1.0
         id: fc
         with:
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -58,24 +58,19 @@ jobs:
           EVENT_BODY: ${{ github.event.comment.body || github.event.pull_request.body }}
         run: |
           TRIGGERED="false"
-          # Use a heredoc to safely handle potential multiline/special chars in the body
-          # We use a single-quoted heredoc delimiter 'EOF' to prevent shell expansion within the heredoc
-          # But we need to get the EVENT_BODY into it safely.
-          # Environment variables are the safest way to pass this data into the shell.
-
-          if echo "$EVENT_BODY" | grep -q "\[x\] 🚀 Click here to deploy Live Tauri Preview Session"; then
+          # Map EVENT_BODY to shell variable to avoid injection/parsing errors
+          if echo "$EVENT_BODY" | grep -qi "\[x\] 🚀 Click here to deploy Live Tauri Preview Session"; then
             TRIGGERED="true"
-          elif echo "$EVENT_BODY" | grep -q "/preview" || echo "$EVENT_BODY" | grep -q "/auto-preview"; then
+          elif echo "$EVENT_BODY" | grep -qi "/preview" || echo "$EVENT_BODY" | grep -qi "/auto-preview"; then
             TRIGGERED="true"
           fi
-
           echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
           echo "Triggered: $TRIGGERED"
 
       - name: Initialize / Reset Bot Comment (State A)
         if: steps.fc.outputs.comment-id == '' || steps.check_trigger.outputs.triggered != 'true'
         id: init_comment
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -114,13 +109,13 @@ jobs:
           fi
 
       - name: Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ steps.resolve_sha.outputs.sha }}
           persist-credentials: false
 
       - name: Update Comment to State B (Pre-Flight Checks)
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -175,7 +170,7 @@ jobs:
 
       - name: Handle Guard Failure
         if: failure() && steps.set_comment_id.outputs.comment_id != ''
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -188,7 +183,7 @@ jobs:
           edit-mode: replace
 
       - name: Update Comment to State C (Compiling)
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
@@ -210,12 +205,12 @@ jobs:
             xvfb x11vnc novnc websockify
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
           node-version: 20
 
       - name: Node Modules Cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -223,7 +218,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Vite Cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: node_modules/.cache
           key: ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json', '**/vite.config.ts') }}
@@ -234,12 +229,10 @@ jobs:
         run: npm ci
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
       - name: Rust Cache
-        uses: swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2
+        uses: swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2.7.5
         with:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/package-lock.json') }}
 
@@ -288,7 +281,7 @@ jobs:
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
 
       - name: Update Comment to State D (Active Stream Link)
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
+        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
           body: |
