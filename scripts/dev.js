@@ -18,12 +18,12 @@ const isLinux = process.platform === 'linux';
 
 // Determine the binary name as expected by the Rust sidecar logic
 const binName = isWindows ? 'wapp-base.exe' : (isMac ? 'wapp-base-mac' : 'wapp-base-linux');
-// Cargo build output name (without platform suffix)
-const cargoBinName = isWindows ? 'wapp-base.exe' : 'wapp-base';
 
 const hasLocalSource = fs.existsSync('wapp-base/src-tauri/Cargo.toml');
 const isCloudRequested = process.argv.includes('--cloud');
-const isLocalMode = hasLocalSource && !isCloudRequested;
+// Auto-detect: if source exists, use it unless --cloud is passed.
+// Also support --local for explicit clarity if someone still wants to use it.
+const isLocalMode = hasLocalSource && (process.argv.includes('--local') || !isCloudRequested);
 const isBuild = process.argv.includes('--build');
 
 const mode = isLocalMode ? 'LOCAL' : 'CLOUD';

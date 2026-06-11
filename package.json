@@ -22,7 +22,6 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.js",
-    "dev:local": "node scripts/dev.js --local",
     "build": "vite build",
     "build:app": "node scripts/dev.js --build",
     "vite": "vite",
