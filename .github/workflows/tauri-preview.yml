@@ -7,9 +7,6 @@ on:
     types: [created, edited]
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 permissions:
   contents: read
   pull-requests: write
@@ -19,13 +16,14 @@ permissions:
 jobs:
   preview:
     name: Live Tauri Preview
-    # Trigger on any open PR or issue comment related to a PR.
+    # Job-level guard to ensure we only run on open PRs or PR-related comments
     if: >
       (github.event.pull_request && github.event.pull_request.state == 'open') ||
       (github.event.issue.pull_request && github.event.issue.state == 'open')
     runs-on: ubuntu-latest
     concurrency:
-      group: tauri-preview-${{ github.event.number || github.event.issue.number }}
+      # Ensures only one preview session runs per PR. New /preview commands will cancel stale ones.
+      group: tauri-preview-${{ github.event.pull_request.number || github.event.issue.number }}
       cancel-in-progress: true
     steps:
       - name: Permission Guard
@@ -38,14 +36,8 @@ jobs:
             exit 1
           fi
 
-      - name: Debug Event Info
-        run: |
-          echo "Event Name: \"${{ github.event_name }}\""
-          echo "Event Action: \"${{ github.event.action }}\""
-          echo "PR Number: \"${{ github.event.pull_request.number || github.event.issue.number }}\""
-
       - name: Find Bot Comment
-        uses: peter-evans/find-comment@3eae4d37986fb5986fa6ac04a82c0b75ce981078 # v3.1.0
+        uses: peter-evans/find-comment@3eae4d37986fb5ba85bfd4246944358a9e0839e9 # v3.1.0
         id: fc
         with:
           issue-number: ${{ github.event.pull_request.number || github.event.issue.number }}
@@ -58,17 +50,15 @@ jobs:
           EVENT_BODY: ${{ github.event.comment.body || github.event.pull_request.body }}
         run: |
           TRIGGERED="false"
-          # Map EVENT_BODY to shell variable to avoid injection/parsing errors
-          if echo "$EVENT_BODY" | grep -qi "\[x\] 🚀 Click here to deploy Live Tauri Preview Session"; then
-            TRIGGERED="true"
-          elif echo "$EVENT_BODY" | grep -qi "/preview" || echo "$EVENT_BODY" | grep -qi "/auto-preview"; then
+          # Strictly detect /preview slash command. Supports multiline and various placements.
+          if echo "$EVENT_BODY" | grep -qi "/preview"; then
             TRIGGERED="true"
           fi
           echo "triggered=$TRIGGERED" >> $GITHUB_OUTPUT
           echo "Triggered: $TRIGGERED"
 
-      - name: Initialize / Reset Bot Comment (State A)
-        if: steps.fc.outputs.comment-id == '' || steps.check_trigger.outputs.triggered != 'true'
+      - name: Initialize / Reset Bot Comment
+        # Always run to keep the bot comment in a stable, predictable state (Idle or Preparing)
         id: init_comment
         uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
@@ -78,9 +68,9 @@ jobs:
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
 
-            - [ ] 🚀 Click here to deploy Live Tauri Preview Session
+            **Status:** ${{ steps.check_trigger.outputs.triggered == 'true' && '`Preparing environment...` ⚙️' || '`Idle` 😴' }}
 
-            **Status:** `Idle` 😴
+            ${{ steps.check_trigger.outputs.triggered != 'true' && '*Tip: Comment `/preview` to deploy a live session.*' || '' }}
           edit-mode: replace
 
       - name: Set Comment ID
@@ -92,7 +82,7 @@ jobs:
       - name: Stop if not triggered
         if: steps.check_trigger.outputs.triggered != 'true'
         run: |
-          echo "Workflow was not triggered by checkbox or keyword. Hanging up."
+          echo "Workflow was not triggered by '/preview'. Hanging up."
           exit 0
 
       - name: Resolve PR Head SHA
@@ -103,7 +93,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "pull_request" || "${{ github.event_name }}" == "pull_request_target" ]]; then
             echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           else
-            # For issue_comment, we need to fetch the PR head SHA via gh CLI
+            # For issue_comment, we fetch the PR head SHA via gh CLI
             PR_SHA=$(gh pr view ${{ github.event.issue.number }} --json headRefOid -q .headRefOid)
             echo "sha=$PR_SHA" >> $GITHUB_OUTPUT
           fi
@@ -114,7 +104,7 @@ jobs:
           ref: ${{ steps.resolve_sha.outputs.sha }}
           persist-credentials: false
 
-      - name: Update Comment to State B (Pre-Flight Checks)
+      - name: Update Comment (Pre-Flight Checks)
         uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
@@ -122,9 +112,7 @@ jobs:
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
 
-            - [x] 🚀 Click here to deploy Live Tauri Preview Session
-
-            **Status:** `Pre-Flight Checks` 🔍 (Verifying CI compliance...)
+            **Status:** `🔍 Verifying CI compliance...`
           edit-mode: replace
 
       - name: Status Check Guard
@@ -137,21 +125,20 @@ jobs:
           WAIT_INTERVAL=20
 
           for ((i=1; i<=$MAX_ATTEMPTS; i++)); do
+            # Combined status check
             STATUS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/status)
             STATE=$(echo "$STATUS_JSON" | jq -r '.state')
-            echo "Attempt $i: Combined state is $STATE"
-
             if [[ "$STATE" == "success" ]]; then
               echo "All CI checks passed."
               exit 0
             elif [[ "$STATE" == "failure" ]]; then
-              echo "::error::CI checks failed for this commit. Aborting preview."
+              echo "::error::CI checks failed for this commit."
               exit 1
             fi
 
-            CHECKS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs)
+            # Check individual check-runs
+            CHECKS_JSON=$(gh api /repos/${{ github.repository }}/commits/$COMMIT_SHA/check-runs?filter=latest)
             FAILED_CHECKS=$(echo "$CHECKS_JSON" | jq -r '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | .name')
-
             if [[ -n "$FAILED_CHECKS" ]]; then
               echo "::error::Failing check runs detected: $FAILED_CHECKS"
               exit 1
@@ -162,10 +149,10 @@ jobs:
                echo "Checks completed with non-failure states."
                exit 0
             fi
-            echo "Waiting for checks to complete..."
+            echo "Waiting for checks to complete ($i/$MAX_ATTEMPTS)..."
             sleep $WAIT_INTERVAL
           done
-          echo "::error::Timed out waiting for CI checks to complete."
+          echo "::error::Timed out waiting for CI checks."
           exit 1
 
       - name: Handle Guard Failure
@@ -177,12 +164,12 @@ jobs:
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
 
-            - [ ] 🚀 Click here to deploy Live Tauri Preview Session
+            ❌ **Deployment Failed**
 
-            **Status:** `Failed` ❌ (Upstream CI checks are failing or timed out. Please fix them before previewing.)
+            Upstream CI checks are failing or timed out. Please fix them before previewing.
           edit-mode: replace
 
-      - name: Update Comment to State C (Compiling)
+      - name: Update Comment (Compiling)
         uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
@@ -190,9 +177,7 @@ jobs:
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
 
-            - [x] 🚀 Click here to deploy Live Tauri Preview Session
-
-            **Status:** `Compiling` ⚙️ (Active system processing and dependency loading...)
+            **Status:** `⚙️ Compiling and booting session...`
           edit-mode: replace
 
       - name: Install System Dependencies
@@ -230,6 +215,8 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          components: rustfmt
 
       - name: Rust Cache
         uses: swatinem/rust-cache@42dc69e1aa15d09112580998cf2ef0119e2e91ae # v2.7.5
@@ -265,7 +252,7 @@ jobs:
             sleep 5
           done
 
-      - name: Start Dynamic Tunneling (State D)
+      - name: Start Dynamic Tunneling
         id: tunnel
         run: |
           sudo curl -Ls https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | sudo tar zx -C /usr/local/bin
@@ -280,7 +267,7 @@ jobs:
           fi
           echo "url=http://bore.pub:$REMOTE_PORT" >> $GITHUB_OUTPUT
 
-      - name: Update Comment to State D (Active Stream Link)
+      - name: Update Comment (Active)
         uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4.0.0
         with:
           comment-id: ${{ steps.set_comment_id.outputs.comment_id }}
@@ -288,25 +275,18 @@ jobs:
             <!-- tauri-preview-bot-marker -->
             ## 🚀 Tauri Live Preview
 
-            - [x] 🚀 Click here to deploy Live Tauri Preview Session
+            ✅ **Preview session is active!**
 
-            **Status:** `Active` ✅
-
-            ### 📺 Live Session Link
-            **[Click here to open the Live Preview](${{ steps.tunnel.outputs.url }})**
+            ### 📺 [Click here to open the Live Preview](${{ steps.tunnel.outputs.url }})
 
             **Metadata:**
             - **Commit SHA:** `${{ steps.resolve_sha.outputs.sha }}`
-            - **Display:** 1280x1024 (Virtual Framebuffer)
+            - **Expires in:** 15 minutes (session will automatically terminate)
 
-            **📱 Tablet / Viewport Instructions:**
-            1. Open the link above in your browser.
-            2. If prompted, click "Connect".
-            3. Use the sidebar menu in noVNC to toggle "Scaling" if the viewport doesn't fit your screen.
-            4. To stop the session, uncheck the checkbox at the top of this comment or close the PR.
+            *Tip: If the viewport doesn't fit, use the sidebar menu in noVNC to toggle "Scaling".*
           edit-mode: replace
 
       - name: Keep Alive
         run: |
-          echo "Preview session is active. Waiting 30 minutes before automatic termination..."
-          sleep 1800
+          echo "Preview session is active. Waiting 15 minutes before automatic termination..."
+          sleep 900
