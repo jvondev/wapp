@@ -66,8 +66,7 @@ fn decode_base64_icon(data_url: &str) -> Option<tauri::image::Image<'static>> {
     None
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+fn main() {
     let config = load_config();
     let url_str = config.url.clone();
     let title = config.name.clone();

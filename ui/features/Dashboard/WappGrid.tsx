@@ -1,7 +1,7 @@
 import { Component, For, Show } from "solid-js";
 import { WappCard, LoadingCard, SkeletonCard } from "./WappCard";
-import { useAppStore } from "../store";
-import { tauriService } from "../services/tauri";
+import { useAppStore } from "../../store";
+import { tauriService } from "../../services/tauri";
 
 export const WappGrid: Component = () => {
   const [state, actions] = useAppStore();

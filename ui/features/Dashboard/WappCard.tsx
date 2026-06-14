@@ -1,7 +1,7 @@
 import { Component, Show, createSignal } from "solid-js";
 import { Play, MoreHorizontal, Loader2, Edit2, Trash2, ExternalLink } from "lucide-solid";
-import { WappConfig } from "../types";
-import { ContextMenu } from "./ContextMenu";
+import { WappConfig } from "../../types";
+import { ContextMenu } from "../../components/ContextMenu";
 
 export const SkeletonCard: Component = () => (
   <div class="wapp-card skeleton" style="aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; border: none; background: transparent; box-shadow: none;">

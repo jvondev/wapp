@@ -1,6 +1,6 @@
 import { Component } from "solid-js";
-import { useAppStore } from "../store";
-import { tauriService } from "../services/tauri";
+import { useAppStore } from "../../store";
+import { tauriService } from "../../services/tauri";
 
 export const SettingsView: Component = () => {
   const [state, actions] = useAppStore();
@@ -47,7 +47,7 @@ export const SettingsView: Component = () => {
         <h3>About Wapp</h3>
         <p style="color: #71717a; font-size: 0.85rem; line-height: 1.6;">
           v0.1.0 — Built with Tauri v2 and SolidJS.<br />
-          Engine: <code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">@jvondev/wapp-base</code><br />
+          Engine: <code style="background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">wapp-base</code><br />
           License: Apache-2.0
         </p>
       </div>
