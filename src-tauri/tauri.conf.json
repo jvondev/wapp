@@ -33,8 +33,10 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "bin/*",
-      "base-bin/*"
+        {"src": "target/release/wapp-base", "target": "bin/wapp-base", "optional": true},
+        {"src": "target/release/wapp-base.exe", "target": "bin/wapp-base.exe", "optional": true},
+        {"src": "target/debug/wapp-base", "target": "bin/wapp-base", "optional": true},
+        {"src": "target/debug/wapp-base.exe", "target": "bin/wapp-base.exe", "optional": true}
     ]
   }
 }

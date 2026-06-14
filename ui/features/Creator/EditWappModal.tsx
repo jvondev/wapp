@@ -1,6 +1,6 @@
 import { Component, Show, createSignal, createEffect } from "solid-js";
 import { X, Save, Pencil } from "lucide-solid";
-import { useAppStore } from "../store";
+import { useAppStore } from "../../store";
 
 export const EditWappModal: Component = () => {
   const [state, actions] = useAppStore();

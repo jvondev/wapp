@@ -8,10 +8,10 @@ import { FolderOpen } from "lucide-solid";
 import { useAppStore } from "./store";
 import { tauriService } from "./services/tauri";
 import { Sidebar } from "./components/Sidebar";
-import { WappGrid } from "./components/WappGrid";
-import { SettingsView } from "./components/SettingsView";
+import { WappGrid } from "./features/Dashboard/WappGrid";
+import { SettingsView } from "./features/Settings/SettingsView";
 import { CommandCenter } from "./components/CommandCenter";
-import { EditWappModal } from "./components/EditWappModal";
+import { EditWappModal } from "./features/Creator/EditWappModal";
 import { Notifications } from "./components/Notifications";
 
 function App() {

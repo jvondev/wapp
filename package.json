@@ -7,28 +7,16 @@
     "type": "git",
     "url": "https://github.com/jvondev/wapp.git"
   },
-  "keywords": [
-    "desktop",
-    "app-builder",
-    "tauri",
-    "web-to-desktop",
-    "native-app",
-    "wrapper",
-    "dashboard",
-    "electron-alternative"
-  ],
   "author": "jvondev",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev.js",
-    "dev:npm": "node scripts/dev.js --npm",
+    "dev": "tauri dev -c core/tauri.conf.json",
     "build": "vite build",
-    "build:app": "node scripts/dev.js --build",
+    "build:app": "tauri build -c core/tauri.conf.json",
     "vite": "vite",
     "lint": "tsc --noEmit",
-    "prettier": "prettier --write \"src/**/*.{ts,tsx,css}\"",
-    "prepare": "node scripts/prepare-base.js"
+    "prettier": "prettier --write \"ui/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -37,7 +25,6 @@
     "solid-js": "^1.9.3"
   },
   "devDependencies": {
-    "@jvondev/wapp-base": "1.0.2",
     "@tauri-apps/cli": "^2",
     "typescript": "~6.0.3",
     "vite": "^6.0.3",
